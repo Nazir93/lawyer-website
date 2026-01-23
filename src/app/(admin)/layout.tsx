@@ -1,13 +1,23 @@
+import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/admin/sidebar";
+import { auth } from "@/lib/auth/auth";
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // TODO: Добавить проверку авторизации через NextAuth
-  // const session = await auth();
-  // if (!session) redirect('/login');
+  // Проверка авторизации
+  const session = await auth();
+  
+  if (!session) {
+    redirect('/login');
+  }
+  
+  // Проверка роли - только ADMIN или LAWYER
+  if (session.user.role !== 'ADMIN' && session.user.role !== 'LAWYER') {
+    redirect('/dashboard');
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">

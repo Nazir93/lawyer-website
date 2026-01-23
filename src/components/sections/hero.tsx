@@ -52,7 +52,7 @@ export function Hero() {
         }
 
         if (result.data) {
-          // Обрабатываем stats - Supabase возвращает JSONB как объект
+          // Обрабатываем stats - Prisma возвращает JSON как объект
           // overlay_opacity может быть строкой (DECIMAL), преобразуем в число
           const processedData = {
             ...result.data,
@@ -80,7 +80,7 @@ export function Hero() {
   const data = heroData || {
     content_type: 'image' as const,
     title: 'Юридическая защита высшего класса',
-    subtitle: 'Гасанов И Адвокат',
+    subtitle: 'Гасанов А. Адвокат',
     description: '15 лет опыта. 500+ выигранных дел. Персональный подход к каждому клиенту. Решаем сложные юридические вопросы.',
     primary_button_text: 'Получить консультацию',
     primary_button_link: '/contacts',

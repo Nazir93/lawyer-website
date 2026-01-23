@@ -129,7 +129,7 @@ export default function AdminHeroPage() {
         let errorMsg = result.error || "Ошибка сохранения";
         
         if (result.code === "TABLE_NOT_FOUND") {
-          errorMsg = `Таблица hero_section не найдена. ${result.hint || "Выполните SQL скрипт из файла supabase/hero_section.sql"}`;
+          errorMsg = `Таблица hero_section не найдена. ${result.hint || "Выполните npx prisma db push для создания таблиц"}`;
         } else if (result.details) {
           errorMsg = `${result.error}: ${result.details}`;
         } else if (result.error) {
@@ -327,7 +327,7 @@ export default function AdminHeroPage() {
                   <Input
                     value={heroData.subtitle || ""}
                     onChange={(e) => setHeroData({ ...heroData, subtitle: e.target.value })}
-                    placeholder="Гасанов И Адвокат"
+                    placeholder="Гасанов А. Адвокат"
                   />
                 </div>
 

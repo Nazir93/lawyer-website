@@ -5,12 +5,12 @@ import Link from "next/link";
 import { ArrowUpRight, CheckCircle2, Trophy, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRef, useEffect, useState } from "react";
-import type { Case } from "@prisma/client";
+import type { Case as CaseType } from "@/lib/db/types";
 
 export function CasesPreview() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
-  const [cases, setCases] = useState<Case[]>([]);
+  const [cases, setCases] = useState<CaseType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {

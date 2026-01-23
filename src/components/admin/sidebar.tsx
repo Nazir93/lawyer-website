@@ -14,7 +14,6 @@ import {
   LogOut,
   Scale,
   ChevronRight,
-  Database,
   Image as ImageIcon,
   Calendar,
 } from "lucide-react";
@@ -92,11 +91,6 @@ const navigation = [
   {
     title: "Настройки",
     items: [
-      {
-        title: "Настройка Supabase",
-        href: "/admin/setup",
-        icon: Database,
-      },
       {
         title: "Настройки сайта",
         href: "/admin/settings",

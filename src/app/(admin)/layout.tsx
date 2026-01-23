@@ -5,10 +5,9 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // TODO: Добавить проверку авторизации через Supabase
-  // const supabase = await createClient();
-  // const { data: { user } } = await supabase.auth.getUser();
-  // if (!user) redirect('/admin/login');
+  // TODO: Добавить проверку авторизации через NextAuth
+  // const session = await auth();
+  // if (!session) redirect('/login');
 
   return (
     <div className="min-h-screen bg-muted/30">

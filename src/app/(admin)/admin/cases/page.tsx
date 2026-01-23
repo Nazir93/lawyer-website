@@ -39,13 +39,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useApi } from "@/hooks/use-api";
-import type { Case } from "@prisma/client";
+import type { Case as CaseType } from "@/lib/db/types";
 
 export default function AdminCasesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   
-  const { data: cases, isLoading, update, remove } = useApi<Case>({
+  const { data: cases, isLoading, update, remove } = useApi<CaseType>({
     url: "/api/cases",
   });
 
@@ -53,11 +53,11 @@ export default function AdminCasesPage() {
     c.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleToggleActive = async (caseItem: Case) => {
+  const handleToggleActive = async (caseItem: CaseType) => {
     await update(caseItem.id, { isActive: !caseItem.isActive });
   };
 
-  const handleToggleFeatured = async (caseItem: Case) => {
+  const handleToggleFeatured = async (caseItem: CaseType) => {
     await update(caseItem.id, { isFeatured: !caseItem.isFeatured });
   };
 

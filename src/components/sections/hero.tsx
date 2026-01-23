@@ -1,10 +1,10 @@
 "use client";
 
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import { ArrowUpRight, ArrowDown } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { useRef, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface HeroData {
   content_type: 'image' | 'video';
@@ -26,17 +26,8 @@ interface HeroData {
 }
 
 export function Hero() {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [heroData, setHeroData] = useState<HeroData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end start"],
-  });
-
-  const y = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
-  const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
   useEffect(() => {
     async function fetchHero() {
@@ -118,7 +109,6 @@ export function Hero() {
 
   return (
     <section
-      ref={containerRef}
       className="relative min-h-screen flex items-center justify-center overflow-hidden"
     >
       {/* Background Media */}
@@ -162,13 +152,13 @@ export function Hero() {
         <>
           {/* Default Background Grid */}
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:64px_64px]" />
-          {/* Gradient Orbs */}
-          <div className="absolute top-1/4 -left-1/4 w-[600px] h-[600px] bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 -right-1/4 w-[600px] h-[600px] bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-full blur-3xl" />
+          {/* Gradient Orbs - simplified for mobile performance */}
+          <div className="hidden md:block absolute top-1/4 -left-1/4 w-[600px] h-[600px] bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-full blur-2xl" />
+          <div className="hidden md:block absolute bottom-1/4 -right-1/4 w-[600px] h-[600px] bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-full blur-2xl" />
         </>
       )}
 
-      <motion.div style={{ y, opacity }} className={`container mx-auto px-6 lg:px-8 relative z-10 flex ${textAlignClass}`}>
+      <div className={`container mx-auto px-6 lg:px-8 relative z-10 flex ${textAlignClass}`}>
         <div className="max-w-6xl mx-auto w-full">
           {/* Badge */}
           {data.show_badge && data.badge_text && (
@@ -178,7 +168,7 @@ export function Hero() {
               transition={{ duration: 0.6 }}
               className={`flex items-center gap-3 mb-8 ${textAlignClass.includes('center') ? 'justify-center' : textAlignClass.includes('right') ? 'justify-end' : 'justify-start'}`}
             >
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-border text-sm text-muted-foreground bg-background/50 backdrop-blur-sm">
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-border text-sm text-muted-foreground bg-background/80">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
@@ -283,7 +273,7 @@ export function Hero() {
             </motion.div>
           )}
         </div>
-      </motion.div>
+      </div>
 
       {/* Scroll Indicator */}
       <motion.div

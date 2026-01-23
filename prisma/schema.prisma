@@ -1,0 +1,577 @@
+// =====================================================
+// PRISMA СХЕМА ДЛЯ САЙТА ЮРИСТА
+// База данных: Yandex Cloud PostgreSQL
+// =====================================================
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =====================================================
+// ПОЛЬЗОВАТЕЛИ И АУТЕНТИФИКАЦИЯ (NextAuth)
+// =====================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  phone         String?   @unique
+  phoneVerified DateTime?
+  image         String?
+  password      String?   // Для входа по паролю
+  role          UserRole  @default(CLIENT)
+  
+  // NextAuth поля
+  accounts      Account[]
+  sessions      Session[]
+  
+  // Связи с другими таблицами
+  documents     ClientDocument[]
+  sentMessages  Message[]      @relation("SentMessages")
+  receivedMessages Message[]   @relation("ReceivedMessages")
+  userCases     UserCase[]
+  appointments  Appointment[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum UserRole {
+  CLIENT
+  LAWYER
+  ADMIN
+}
+
+// =====================================================
+// НАСТРОЙКИ САЙТА
+// =====================================================
+
+model SiteSettings {
+  id                   String   @id @default(cuid())
+  
+  // Профиль юриста
+  lawyerName           String   @default("Иванов Иван Иванович")
+  lawyerPosition       String?  @default("Адвокат")
+  lawyerBio            String?
+  lawyerPhotoUrl       String?
+  lawyerExperienceYears Int     @default(15)
+  
+  // Контакты
+  phone                String?  @default("+7 (900) 123-45-67")
+  email                String?  @default("info@lawyer.ru")
+  address              String?  @default("г. Москва, ул. Примерная, д. 10")
+  whatsapp             String?
+  telegram             String?
+  
+  // Соцсети
+  vkUrl                String?
+  telegramChannelUrl   String?
+  
+  // SEO
+  siteTitle            String?  @default("Адвокат | Юридические услуги")
+  siteDescription      String?
+  
+  // Telegram уведомления
+  telegramBotToken     String?
+  telegramChatId       String?
+  
+  // Аналитика
+  googleAnalyticsId    String?
+  yandexMetrikaId      String?
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+// =====================================================
+// КАТЕГОРИИ
+// =====================================================
+
+model Category {
+  id          String       @id @default(cuid())
+  type        CategoryType
+  name        String
+  slug        String
+  description String?
+  icon        String?
+  sortOrder   Int          @default(0)
+  isActive    Boolean      @default(true)
+  
+  services    Service[]
+  news        News[]
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  @@unique([type, slug])
+}
+
+enum CategoryType {
+  SERVICE
+  NEWS
+  CASE
+}
+
+// =====================================================
+// УСЛУГИ
+// =====================================================
+
+model Service {
+  id              String       @id @default(cuid())
+  title           String
+  slug            String       @unique
+  description     String?
+  content         String?      @db.Text
+  imageUrl        String?
+  icon            String?
+  categoryId      String?
+  category        Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  serviceGroup    ServiceGroup @default(INDIVIDUAL)
+  priceFrom       Int?
+  priceTo         Int?
+  priceText       String?
+  
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  
+  // Статус
+  sortOrder       Int          @default(0)
+  isActive        Boolean      @default(true)
+  
+  reviews         Review[]
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+enum ServiceGroup {
+  INDIVIDUAL
+  BUSINESS
+  SPECIAL
+}
+
+// =====================================================
+// КЕЙСЫ (Выигранные дела)
+// =====================================================
+
+model Case {
+  id              String   @id @default(cuid())
+  title           String
+  slug            String   @unique
+  description     String?
+  content         String?  @db.Text
+  imageUrl        String?
+  category        String?
+  result          String
+  year            Int      @default(2024)
+  clientName      String?
+  duration        String?
+  
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  
+  // Статус
+  isFeatured      Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  
+  // Связи
+  documents       ClientDocument[]
+  messages        Message[]
+  userCases       UserCase[]
+  appointments    Appointment[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// =====================================================
+// НОВОСТИ / БЛОГ
+// =====================================================
+
+model News {
+  id              String    @id @default(cuid())
+  title           String
+  slug            String    @unique
+  description     String?
+  content         String?   @db.Text
+  imageUrl        String?
+  categoryId      String?
+  category        Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  
+  // Публикация
+  isPublished     Boolean   @default(false)
+  publishedAt     DateTime?
+  views           Int       @default(0)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// =====================================================
+// ЗАЯВКИ (Лиды)
+// =====================================================
+
+model Lead {
+  id           String     @id @default(cuid())
+  name         String
+  phone        String
+  email        String?
+  service      String?
+  message      String?
+  status       LeadStatus @default(NEW)
+  
+  // Источник
+  source       String     @default("website")
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  
+  // GDPR
+  consentGiven Boolean    @default(false)
+  consentDate  DateTime?
+  
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  CONSULTATION
+  DONE
+  REJECTED
+}
+
+// =====================================================
+// ОТЗЫВЫ
+// =====================================================
+
+model Review {
+  id              String   @id @default(cuid())
+  authorName      String
+  authorPosition  String?
+  authorCompany   String?
+  authorPhotoUrl  String?
+  content         String   @db.Text
+  rating          Int      @default(5)
+  serviceId       String?
+  service         Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  
+  isVerified      Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+}
+
+// =====================================================
+// FAQ
+// =====================================================
+
+model FAQ {
+  id        String   @id @default(cuid())
+  question  String
+  answer    String   @db.Text
+  category  String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =====================================================
+// ЦЕНЫ / ТАРИФЫ
+// =====================================================
+
+model Pricing {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       String
+  priceNote   String?
+  features    String[] // Массив возможностей
+  isPopular   Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// =====================================================
+// МЕДИА ФАЙЛЫ
+// =====================================================
+
+model Media {
+  id               String   @id @default(cuid())
+  filename         String
+  originalFilename String
+  fileUrl          String
+  fileType         String
+  fileSize         Int?
+  altText          String?
+  
+  createdAt        DateTime @default(now())
+}
+
+// =====================================================
+// HERO СЕКЦИЯ
+// =====================================================
+
+model HeroSection {
+  id                   String        @id @default(cuid())
+  contentType          HeroContentType @default(IMAGE)
+  imageUrl             String?
+  videoUrl             String?
+  videoType            VideoType?
+  title                String?
+  subtitle             String?
+  description          String?
+  primaryButtonText    String?
+  primaryButtonLink    String?
+  secondaryButtonText  String?
+  secondaryButtonLink  String?
+  badgeText            String?
+  showBadge            Boolean       @default(false)
+  stats                Json?         // JSON для статистики
+  overlayOpacity       Float?
+  textPosition         TextPosition  @default(LEFT)
+  isActive             Boolean       @default(true)
+  sortOrder            Int           @default(0)
+  
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+}
+
+enum HeroContentType {
+  IMAGE
+  VIDEO
+}
+
+enum VideoType {
+  YOUTUBE
+  VIMEO
+  FILE
+}
+
+enum TextPosition {
+  LEFT
+  CENTER
+  RIGHT
+}
+
+// =====================================================
+// ДОКУМЕНТЫ КЛИЕНТОВ
+// =====================================================
+
+model ClientDocument {
+  id               String         @id @default(cuid())
+  userId           String
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caseId           String?
+  case             Case?          @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  
+  // Информация о файле
+  filename         String
+  originalFilename String
+  fileUrl          String
+  fileType         String
+  fileSize         Int
+  
+  // Метаданные
+  title            String?
+  description      String?
+  category         DocumentCategory?
+  status           DocumentStatus @default(UPLOADED)
+  uploadedBy       UploadedBy     @default(CLIENT)
+  
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  
+  @@index([userId])
+  @@index([caseId])
+  @@index([status])
+}
+
+enum DocumentCategory {
+  CONTRACT
+  EVIDENCE
+  CORRESPONDENCE
+  OTHER
+}
+
+enum DocumentStatus {
+  DRAFT
+  UPLOADED
+  SENT
+  SIGNED
+  ARCHIVED
+}
+
+enum UploadedBy {
+  CLIENT
+  LAWYER
+  SYSTEM
+}
+
+// =====================================================
+// СООБЩЕНИЯ
+// =====================================================
+
+model Message {
+  id               String           @id @default(cuid())
+  conversationId   String
+  senderId         String
+  sender           User             @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId       String?
+  receiver         User?            @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: SetNull)
+  conversationType ConversationType @default(GENERAL)
+  caseId           String?
+  case             Case?            @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  
+  messageText      String           @db.Text
+  attachments      Json?            // JSON для вложений
+  
+  isRead           Boolean          @default(false)
+  readAt           DateTime?
+  
+  createdAt        DateTime         @default(now())
+  
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([caseId])
+}
+
+enum ConversationType {
+  GENERAL
+  CASE
+  SUPPORT
+}
+
+// =====================================================
+// СВЯЗЬ ПОЛЬЗОВАТЕЛЕЙ С ДЕЛАМИ
+// =====================================================
+
+model UserCase {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caseId    String
+  case      Case           @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  role      CaseRole       @default(CLIENT)
+  status    CaseUserStatus @default(ACTIVE)
+  notes     String?
+  
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  
+  @@unique([userId, caseId])
+  @@index([userId])
+  @@index([caseId])
+}
+
+enum CaseRole {
+  CLIENT
+  LAWYER
+  WITNESS
+  OTHER
+}
+
+enum CaseUserStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+// =====================================================
+// ЗАПИСИ НА КОНСУЛЬТАЦИИ
+// =====================================================
+
+model Appointment {
+  id              String            @id @default(cuid())
+  userId          String
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caseId          String?
+  case            Case?             @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  
+  title           String
+  description     String?
+  appointmentDate DateTime
+  durationMinutes Int               @default(60)
+  type            AppointmentType   @default(ONLINE)
+  meetingLink     String?
+  officeAddress   String?
+  status          AppointmentStatus @default(SCHEDULED)
+  
+  reminderSent    Boolean           @default(false)
+  reminderSentAt  DateTime?
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  @@index([userId])
+  @@index([appointmentDate])
+  @@index([status])
+}
+
+enum AppointmentType {
+  ONLINE
+  OFFICE
+  PHONE
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}

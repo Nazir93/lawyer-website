@@ -3,8 +3,8 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 import { Eye, EyeOff, ArrowRight, Loader2, Mail, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,8 @@ import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [authMethod, setAuthMethod] = useState<"email" | "phone">("email");
@@ -24,6 +26,19 @@ export default function LoginPage() {
     password: "",
     remember: false,
   });
+
+  // Получаем callbackUrl из параметров
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+
+  // Если уже авторизован - перенаправляем
+  useEffect(() => {
+    if (session?.user) {
+      const redirectUrl = session.user.role === "ADMIN" || session.user.role === "LAWYER" 
+        ? (callbackUrl.includes("/admin") ? callbackUrl : "/admin")
+        : "/dashboard";
+      router.push(redirectUrl);
+    }
+  }, [session, router, callbackUrl]);
 
   // Проверяем параметры URL для сообщений
   useEffect(() => {
@@ -67,7 +82,7 @@ export default function LoginPage() {
       }
 
       toast.success("Вы успешно вошли!");
-      router.push("/dashboard");
+      // Перенаправление будет через useEffect после получения session
       router.refresh();
     } catch (error) {
       console.error("Login exception:", error);
@@ -101,7 +116,7 @@ export default function LoginPage() {
       }
 
       toast.success("Вы успешно вошли!");
-      router.push("/dashboard");
+      // Перенаправление будет через useEffect после получения session
       router.refresh();
     } catch (error) {
       console.error("Login exception:", error);

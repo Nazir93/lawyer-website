@@ -11,7 +11,7 @@ export default async function AdminLayout({
   const session = await auth();
   
   if (!session) {
-    redirect('/login');
+    redirect('/login?callbackUrl=/admin');
   }
   
   // Проверка роли - только ADMIN или LAWYER

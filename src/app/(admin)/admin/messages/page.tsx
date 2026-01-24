@@ -117,6 +117,9 @@ export default function AdminMessagesPage() {
   const sendMessage = async () => {
     if (!selectedConversation || !newMessage.trim()) return;
 
+    // Находим текущую беседу для получения user_id
+    const currentConv = conversations.find(c => c.conversation_id === selectedConversation);
+    
     setIsSending(true);
     try {
       const res = await fetch("/api/admin/messages", {
@@ -125,6 +128,7 @@ export default function AdminMessagesPage() {
         body: JSON.stringify({
           conversation_id: selectedConversation,
           message_text: newMessage.trim(),
+          receiver_id: currentConv?.user_id || null, // Добавляем получателя
         }),
       });
 

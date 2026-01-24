@@ -30,8 +30,15 @@ import { Badge } from "@/components/ui/badge";
 import { SearchDropdown } from "./search-dropdown";
 import { useAuth } from "@/hooks/use-auth";
 
+// Интерфейс для разделов
+interface SectionItem {
+  title: string;
+  href: string;
+  children?: SectionItem[];
+}
+
 // Дефолтные разделы (используются если БД недоступна)
-const defaultExploreItems = [
+const defaultExploreItems: SectionItem[] = [
   { title: "Юридическим лицам", href: "/services/business" },
   { title: "Физическим лицам", href: "/services/individual" },
   { title: "Спецпредложения", href: "/services/special" },
@@ -51,7 +58,7 @@ export function Header() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
-  const [exploreItems, setExploreItems] = React.useState(defaultExploreItems);
+  const [exploreItems, setExploreItems] = React.useState<SectionItem[]>(defaultExploreItems);
   const pathname = usePathname();
   const { isLoggedIn, user, profile, logout, isLoading: authLoading } = useAuth();
 
@@ -112,11 +119,27 @@ export function Header() {
                         <ChevronDown className="h-3 w-3" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-48">
+                    <DropdownMenuContent align="start" className="w-56">
                       {exploreItems.map((item) => (
-                        <DropdownMenuItem key={item.href} asChild>
-                          <Link href={item.href}>{item.title}</Link>
-                        </DropdownMenuItem>
+                        <div key={item.href}>
+                          <DropdownMenuItem asChild>
+                            <Link href={item.href} className="font-medium">
+                              {item.title}
+                            </Link>
+                          </DropdownMenuItem>
+                          {/* Подразделы */}
+                          {item.children && item.children.length > 0 && (
+                            <div className="pl-4 border-l border-border ml-3 my-1">
+                              {item.children.map((child) => (
+                                <DropdownMenuItem key={child.href} asChild>
+                                  <Link href={child.href} className="text-sm text-muted-foreground">
+                                    {child.title}
+                                  </Link>
+                                </DropdownMenuItem>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -377,14 +400,30 @@ export function Header() {
                   Услуги
                 </p>
                 {exploreItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="block py-2 px-3 text-lg hover:bg-secondary rounded-lg transition-colors"
-                  >
-                    {item.title}
-                  </Link>
+                  <div key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block py-2 px-3 text-lg font-medium hover:bg-secondary rounded-lg transition-colors"
+                    >
+                      {item.title}
+                    </Link>
+                    {/* Подразделы в мобильном меню */}
+                    {item.children && item.children.length > 0 && (
+                      <div className="ml-4 border-l border-border pl-3 mb-2">
+                        {item.children.map((child) => (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="block py-1.5 px-3 text-base text-muted-foreground hover:bg-secondary rounded-lg transition-colors"
+                          >
+                            {child.title}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
 

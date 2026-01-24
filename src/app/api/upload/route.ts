@@ -2,15 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { uploadFile } from "@/lib/storage";
 
-// Разрешаем большие файлы для загрузки
-export const config = {
-  api: {
-    bodyParser: false,
-    responseLimit: false,
-  },
-};
-
-// Увеличиваем лимит размера тела запроса
+// Route Segment Config для App Router
+export const dynamic = "force-dynamic";
 export const maxDuration = 60; // 60 секунд таймаут
 
 export async function POST(request: NextRequest) {

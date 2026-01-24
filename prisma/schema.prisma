@@ -125,6 +125,37 @@ model SiteSettings {
 }
 
 // =====================================================
+// РАЗДЕЛЫ САЙТА (с поддержкой подразделов)
+// =====================================================
+
+model Section {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  icon        String?
+  
+  // Иерархия (родитель-потомок для подразделов)
+  parentId    String?
+  parent      Section?  @relation("SectionChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Section[] @relation("SectionChildren")
+  
+  // Настройки
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  
+  // Связи с услугами
+  services    Service[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([parentId])
+  @@index([sortOrder])
+}
+
+// =====================================================
 // КАТЕГОРИИ
 // =====================================================
 
@@ -165,6 +196,12 @@ model Service {
   content         String?      @db.Text
   imageUrl        String?
   icon            String?
+  
+  // Связь с разделом
+  sectionId       String?
+  section         Section?     @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  
+  // Связь с категорией (для совместимости)
   categoryId      String?
   category        Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   serviceGroup    ServiceGroup @default(INDIVIDUAL)
@@ -184,6 +221,8 @@ model Service {
   
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+  
+  @@index([sectionId])
 }
 
 enum ServiceGroup {

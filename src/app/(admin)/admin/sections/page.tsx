@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence, Reorder } from "framer-motion";
 import {
   Plus,
   Pencil,
@@ -10,6 +10,11 @@ import {
   Eye,
   EyeOff,
   MoreHorizontal,
+  ChevronDown,
+  ChevronRight,
+  FolderPlus,
+  Loader2,
+  Save,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,111 +38,212 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
+import { ImageUpload } from "@/components/admin/image-upload";
 
-// Временные данные
-const initialSections = [
-  {
-    id: "1",
-    title: "Юридическим лицам",
-    slug: "business",
-    description: "Юридическое сопровождение бизнеса, защита интересов компании",
-    image_url: null,
-    is_active: true,
-    sort_order: 1,
-    services_count: 12,
-  },
-  {
-    id: "2",
-    title: "Физическим лицам",
-    slug: "individual",
-    description: "Семейное право, наследственные споры, защита прав",
-    image_url: null,
-    is_active: true,
-    sort_order: 2,
-    services_count: 10,
-  },
-  {
-    id: "3",
-    title: "Спецпредложения",
-    slug: "special",
-    description: "Особые условия и пакетные предложения",
-    image_url: null,
-    is_active: true,
-    sort_order: 3,
-    services_count: 4,
-  },
-];
+interface Section {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  icon: string | null;
+  parent_id: string | null;
+  sort_order: number;
+  is_active: boolean;
+  services_count: number;
+  children_count: number;
+  children?: Section[];
+}
 
 export default function SectionsPage() {
-  const [sections, setSections] = useState(initialSections);
+  const [sections, setSections] = useState<Section[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSection, setEditingSection] = useState<any>(null);
+  const [editingSection, setEditingSection] = useState<Section | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [hasOrderChanges, setHasOrderChanges] = useState(false);
   const [formData, setFormData] = useState({
-    title: "",
+    name: "",
     slug: "",
     description: "",
+    image_url: "",
+    icon: "",
+    parent_id: "",
     is_active: true,
   });
 
-  const handleCreate = () => {
+  // Загрузка разделов
+  useEffect(() => {
+    fetchSections();
+  }, []);
+
+  const fetchSections = async () => {
+    try {
+      const res = await fetch("/api/sections?includeChildren=true");
+      const result = await res.json();
+      if (result.data) {
+        setSections(result.data);
+      }
+    } catch (error) {
+      console.error("Error fetching sections:", error);
+      toast.error("Ошибка загрузки разделов");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreate = (parentId?: string) => {
     setEditingSection(null);
-    setFormData({ title: "", slug: "", description: "", is_active: true });
+    setFormData({
+      name: "",
+      slug: "",
+      description: "",
+      image_url: "",
+      icon: "",
+      parent_id: parentId || "",
+      is_active: true,
+    });
     setIsModalOpen(true);
   };
 
-  const handleEdit = (section: any) => {
+  const handleEdit = (section: Section) => {
     setEditingSection(section);
     setFormData({
-      title: section.title,
+      name: section.name,
       slug: section.slug,
       description: section.description || "",
+      image_url: section.image_url || "",
+      icon: section.icon || "",
+      parent_id: section.parent_id || "",
       is_active: section.is_active,
     });
     setIsModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    setSections(sections.filter((s) => s.id !== id));
-    toast.success("Раздел удалён");
+  const handleDelete = async (id: string) => {
+    if (!confirm("Удалить раздел? Все подразделы также будут удалены.")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/sections/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setSections(sections.filter((s) => s.id !== id));
+        toast.success("Раздел удалён");
+      } else {
+        throw new Error("Failed to delete");
+      }
+    } catch (error) {
+      toast.error("Ошибка удаления раздела");
+    }
   };
 
-  const handleSave = () => {
-    if (!formData.title) {
+  const handleSave = async () => {
+    if (!formData.name) {
       toast.error("Введите название раздела");
       return;
     }
 
-    if (editingSection) {
-      // Редактирование
-      setSections(
-        sections.map((s) =>
-          s.id === editingSection.id ? { ...s, ...formData } : s
-        )
-      );
-      toast.success("Раздел обновлён");
-    } else {
-      // Создание
-      const newSection = {
-        id: crypto.randomUUID(),
-        ...formData,
-        image_url: null,
-        sort_order: sections.length + 1,
-        services_count: 0,
-      };
-      setSections([...sections, newSection]);
-      toast.success("Раздел создан");
-    }
+    setIsSaving(true);
 
-    setIsModalOpen(false);
+    try {
+      const url = editingSection
+        ? `/api/sections/${editingSection.id}`
+        : "/api/sections";
+      const method = editingSection ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error || "Ошибка сохранения");
+      }
+
+      toast.success(editingSection ? "Раздел обновлён" : "Раздел создан");
+      setIsModalOpen(false);
+      fetchSections(); // Перезагружаем список
+    } catch (error: any) {
+      toast.error(error.message || "Ошибка сохранения раздела");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const toggleActive = (id: string) => {
-    setSections(
-      sections.map((s) =>
-        s.id === id ? { ...s, is_active: !s.is_active } : s
-      )
-    );
+  const toggleActive = async (section: Section) => {
+    try {
+      const res = await fetch(`/api/sections/${section.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...section, is_active: !section.is_active }),
+      });
+
+      if (res.ok) {
+        setSections(
+          sections.map((s) =>
+            s.id === section.id ? { ...s, is_active: !s.is_active } : s
+          )
+        );
+      }
+    } catch (error) {
+      toast.error("Ошибка изменения статуса");
+    }
+  };
+
+  const toggleExpand = (id: string) => {
+    const newExpanded = new Set(expandedSections);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedSections(newExpanded);
+  };
+
+  // Обработка drag-and-drop
+  const handleReorder = (newOrder: Section[]) => {
+    setSections(newOrder);
+    setHasOrderChanges(true);
+  };
+
+  const saveOrder = async () => {
+    setIsSaving(true);
+    try {
+      const reorderData = sections.map((s, index) => ({
+        id: s.id,
+        sort_order: index,
+      }));
+
+      const res = await fetch("/api/sections/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sections: reorderData }),
+      });
+
+      if (res.ok) {
+        toast.success("Порядок сохранён");
+        setHasOrderChanges(false);
+      } else {
+        throw new Error("Failed to save order");
+      }
+    } catch (error) {
+      toast.error("Ошибка сохранения порядка");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Автогенерация slug из названия
@@ -158,6 +264,14 @@ export default function SectionsPage() {
       });
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -165,49 +279,90 @@ export default function SectionsPage() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Разделы</h1>
           <p className="text-muted-foreground">
-            Управление разделами на главной странице
+            Управление разделами сайта. Перетащите для изменения порядка.
           </p>
         </div>
-        <Button onClick={handleCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Создать раздел
-        </Button>
+        <div className="flex gap-2">
+          {hasOrderChanges && (
+            <Button onClick={saveOrder} disabled={isSaving} variant="outline">
+              {isSaving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Сохранить порядок
+            </Button>
+          )}
+          <Button onClick={() => handleCreate()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Создать раздел
+          </Button>
+        </div>
       </div>
 
-      {/* Sections List */}
-      <div className="space-y-4">
-        <AnimatePresence>
-          {sections.map((section, index) => (
-            <motion.div
+      {/* Sections List with Drag-and-Drop */}
+      {sections.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground mb-4">Разделы пока не созданы</p>
+            <Button onClick={() => handleCreate()}>
+              <Plus className="mr-2 h-4 w-4" />
+              Создать первый раздел
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Reorder.Group
+          axis="y"
+          values={sections}
+          onReorder={handleReorder}
+          className="space-y-3"
+        >
+          {sections.map((section) => (
+            <Reorder.Item
               key={section.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: -100 }}
-              transition={{ delay: index * 0.05 }}
+              value={section}
+              className="list-none"
             >
               <Card
-                className={`transition-all ${
+                className={`transition-all cursor-grab active:cursor-grabbing ${
                   !section.is_active ? "opacity-60" : ""
                 }`}
               >
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
                     {/* Drag Handle */}
-                    <div className="cursor-grab text-muted-foreground hover:text-foreground">
+                    <div className="text-muted-foreground hover:text-foreground">
                       <GripVertical className="h-5 w-5" />
                     </div>
 
-                    {/* Image Placeholder */}
-                    <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    {/* Expand/Collapse for children */}
+                    {section.children_count > 0 ? (
+                      <button
+                        onClick={() => toggleExpand(section.id)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        {expandedSections.has(section.id) ? (
+                          <ChevronDown className="h-5 w-5" />
+                        ) : (
+                          <ChevronRight className="h-5 w-5" />
+                        )}
+                      </button>
+                    ) : (
+                      <div className="w-5" />
+                    )}
+
+                    {/* Image */}
+                    <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
                       {section.image_url ? (
                         <img
                           src={section.image_url}
-                          alt={section.title}
+                          alt={section.name}
                           className="w-full h-full object-cover rounded-lg"
                         />
                       ) : (
                         <span className="text-2xl text-muted-foreground">
-                          📁
+                          {section.icon || "📁"}
                         </span>
                       )}
                     </div>
@@ -216,21 +371,25 @@ export default function SectionsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-foreground truncate">
-                          {section.title}
+                          {section.name}
                         </h3>
-                        <Badge
-                          variant={section.is_active ? "default" : "secondary"}
-                        >
+                        <Badge variant={section.is_active ? "default" : "secondary"}>
                           {section.is_active ? "Активен" : "Скрыт"}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                        {section.description}
+                        {section.description || "Без описания"}
                       </p>
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                        <span>Slug: /{section.slug}</span>
+                        <span>/{section.slug}</span>
                         <span>•</span>
                         <span>{section.services_count} услуг</span>
+                        {section.children_count > 0 && (
+                          <>
+                            <span>•</span>
+                            <span>{section.children_count} подразделов</span>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -239,7 +398,7 @@ export default function SectionsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => toggleActive(section.id)}
+                        onClick={() => toggleActive(section)}
                       >
                         {section.is_active ? (
                           <Eye className="h-4 w-4" />
@@ -259,6 +418,10 @@ export default function SectionsPage() {
                             <Pencil className="mr-2 h-4 w-4" />
                             Редактировать
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleCreate(section.id)}>
+                            <FolderPlus className="mr-2 h-4 w-4" />
+                            Добавить подраздел
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => handleDelete(section.id)}
@@ -271,37 +434,121 @@ export default function SectionsPage() {
                       </DropdownMenu>
                     </div>
                   </div>
+
+                  {/* Children (Subsections) */}
+                  <AnimatePresence>
+                    {expandedSections.has(section.id) && section.children && section.children.length > 0 && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-4 ml-12 space-y-2 border-l-2 border-muted pl-4">
+                          {section.children.map((child) => (
+                            <div
+                              key={child.id}
+                              className={`flex items-center gap-3 p-3 rounded-lg bg-muted/50 ${
+                                !child.is_active ? "opacity-60" : ""
+                              }`}
+                            >
+                              <div className="w-10 h-10 rounded bg-muted flex items-center justify-center shrink-0">
+                                <span className="text-lg">{child.icon || "📄"}</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium truncate">{child.name}</span>
+                                  <Badge variant={child.is_active ? "outline" : "secondary"} className="text-xs">
+                                    {child.is_active ? "Активен" : "Скрыт"}
+                                  </Badge>
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  /{child.slug} • {child.services_count} услуг
+                                </div>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEdit(child)}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(child.id)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </CardContent>
               </Card>
-            </motion.div>
+            </Reorder.Item>
           ))}
-        </AnimatePresence>
-      </div>
+        </Reorder.Group>
+      )}
 
       {/* Create/Edit Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingSection ? "Редактировать раздел" : "Создать раздел"}
             </DialogTitle>
             <DialogDescription>
-              {editingSection
+              {formData.parent_id
+                ? "Создание подраздела"
+                : editingSection
                 ? "Измените данные раздела"
                 : "Заполните данные для нового раздела"}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {/* Родительский раздел */}
+            {sections.length > 0 && (
+              <div className="space-y-2">
+                <Label>Родительский раздел</Label>
+                <Select
+                  value={formData.parent_id || "none"}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, parent_id: value === "none" ? "" : value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Корневой раздел" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Корневой раздел</SelectItem>
+                    {sections
+                      .filter((s) => s.id !== editingSection?.id)
+                      .map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="title">Название *</Label>
+              <Label htmlFor="name">Название *</Label>
               <Input
-                id="title"
-                value={formData.title}
+                id="name"
+                value={formData.name}
                 onChange={(e) => {
                   setFormData({
                     ...formData,
-                    title: e.target.value,
+                    name: e.target.value,
                     slug: generateSlug(e.target.value),
                   });
                 }}
@@ -320,7 +567,7 @@ export default function SectionsPage() {
                 placeholder="business"
               />
               <p className="text-xs text-muted-foreground">
-                Будет использоваться в URL: /services/{formData.slug || "..."}
+                URL: /services/{formData.slug || "..."}
               </p>
             </div>
 
@@ -334,6 +581,27 @@ export default function SectionsPage() {
                 }
                 placeholder="Краткое описание раздела..."
                 rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Изображение</Label>
+              <ImageUpload
+                value={formData.image_url || null}
+                onChange={(url) => setFormData({ ...formData, image_url: url || "" })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="icon">Иконка (эмодзи)</Label>
+              <Input
+                id="icon"
+                value={formData.icon}
+                onChange={(e) =>
+                  setFormData({ ...formData, icon: e.target.value })
+                }
+                placeholder="📁"
+                maxLength={4}
               />
             </div>
 
@@ -358,7 +626,8 @@ export default function SectionsPage() {
             <Button variant="outline" onClick={() => setIsModalOpen(false)}>
               Отмена
             </Button>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editingSection ? "Сохранить" : "Создать"}
             </Button>
           </DialogFooter>
@@ -367,4 +636,3 @@ export default function SectionsPage() {
     </div>
   );
 }
-

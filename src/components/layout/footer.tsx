@@ -1,15 +1,17 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
+// Дефолтные услуги (используются если БД недоступна)
+const defaultServices = [
+  { title: "Юридическим лицам", href: "/services/business" },
+  { title: "Физическим лицам", href: "/services/individual" },
+  { title: "Спецпредложения", href: "/services/special" },
+];
+
 const navigation = {
-  services: [
-    { title: "Юридическим лицам", href: "/services/business" },
-    { title: "Физическим лицам", href: "/services/individual" },
-    { title: "Спецпредложения", href: "/services/special" },
-    { title: "Цены", href: "/prices" },
-  ],
   company: [
     { title: "О нас", href: "/about" },
     { title: "Кейсы", href: "/cases" },
@@ -28,6 +30,21 @@ const navigation = {
 };
 
 export function Footer() {
+  const [services, setServices] = useState(defaultServices);
+
+  useEffect(() => {
+    fetch("/api/public/sections")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.data && data.data.length > 0) {
+          setServices(data.data);
+        }
+      })
+      .catch(() => {
+        // При ошибке используем дефолтные значения
+      });
+  }, []);
+
   return (
     <footer className="border-t border-border">
       {/* Main Footer */}
@@ -70,7 +87,7 @@ export function Footer() {
                 Услуги
               </h4>
               <ul className="space-y-3">
-                {navigation.services.map((item) => (
+                {services.map((item) => (
                   <li key={item.href}>
                     <Link
                       href={item.href}
@@ -80,6 +97,14 @@ export function Footer() {
                     </Link>
                   </li>
                 ))}
+                <li>
+                  <Link
+                    href="/prices"
+                    className="text-sm hover:text-muted-foreground transition-colors line-animate inline-block"
+                  >
+                    Цены
+                  </Link>
+                </li>
               </ul>
             </div>
 

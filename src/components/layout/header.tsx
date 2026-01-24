@@ -30,7 +30,8 @@ import { Badge } from "@/components/ui/badge";
 import { SearchDropdown } from "./search-dropdown";
 import { useAuth } from "@/hooks/use-auth";
 
-const exploreItems = [
+// Дефолтные разделы (используются если БД недоступна)
+const defaultExploreItems = [
   { title: "Юридическим лицам", href: "/services/business" },
   { title: "Физическим лицам", href: "/services/individual" },
   { title: "Спецпредложения", href: "/services/special" },
@@ -50,6 +51,7 @@ export function Header() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
+  const [exploreItems, setExploreItems] = React.useState(defaultExploreItems);
   const pathname = usePathname();
   const { isLoggedIn, user, profile, logout, isLoading: authLoading } = useAuth();
 
@@ -59,6 +61,19 @@ export function Header() {
       setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener("scroll", handleScroll);
+
+    // Загружаем разделы из БД
+    fetch("/api/public/sections")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.data && data.data.length > 0) {
+          setExploreItems(data.data);
+        }
+      })
+      .catch(() => {
+        // При ошибке используем дефолтные значения
+      });
+
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 

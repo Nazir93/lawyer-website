@@ -3,40 +3,71 @@
 import { useEffect, useState, useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
-import { ArrowUpRight, Building2, Users, Sparkles, Briefcase, Loader2 } from "lucide-react";
+import { ArrowUpRight, Building2, Users, Sparkles, Briefcase, Loader2, Folder, LucideIcon } from "lucide-react";
 
-interface ServiceStats {
-  business: number;
-  individual: number;
-  special: number;
+// Маппинг иконок по slug
+const iconMap: Record<string, LucideIcon> = {
+  business: Building2,
+  individual: Users,
+  special: Sparkles,
+};
+
+// Дефолтные разделы
+const defaultSections = [
+  {
+    id: "1",
+    title: "Юридическим лицам",
+    description: "Сопровождение бизнеса, арбитраж, банкротство, корпоративные споры",
+    href: "/services/business",
+    slug: "business",
+  },
+  {
+    id: "2",
+    title: "Физическим лицам",
+    description: "Семейное право, наследство, недвижимость, трудовые споры",
+    href: "/services/individual",
+    slug: "individual",
+  },
+  {
+    id: "3",
+    title: "Спецпредложения",
+    description: "VIP-сопровождение, абонентское обслуживание, медиация",
+    href: "/services/special",
+    slug: "special",
+  },
+];
+
+interface Section {
+  id: string;
+  title: string;
+  description: string | null;
+  href: string;
+  slug?: string;
 }
 
 export function ServicesGrid() {
-  const [stats, setStats] = useState<ServiceStats>({ business: 0, individual: 0, special: 0 });
+  const [sections, setSections] = useState<Section[]>(defaultSections);
   const [casesCount, setCasesCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [servicesRes, casesRes] = await Promise.all([
-          fetch("/api/services?active=true"),
+        const [sectionsRes, casesRes] = await Promise.all([
+          fetch("/api/public/sections"),
           fetch("/api/cases?active=true"),
         ]);
 
-        const servicesData = await servicesRes.json();
+        const sectionsData = await sectionsRes.json();
         const casesData = await casesRes.json();
 
-        const services = servicesData.data || [];
-        setStats({
-          business: services.filter((s: any) => s.service_group === "business").length,
-          individual: services.filter((s: any) => s.service_group === "individual").length,
-          special: services.filter((s: any) => s.service_group === "special").length,
-        });
+        if (sectionsData.data && sectionsData.data.length > 0) {
+          setSections(sectionsData.data);
+        }
 
         setCasesCount(casesData.count || 0);
       } catch (error) {
-        console.error("Error fetching stats:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setIsLoading(false);
       }
@@ -45,42 +76,23 @@ export function ServicesGrid() {
     fetchData();
   }, []);
 
-  const sections = [
+  // Добавляем блок "Кейсы" в конец
+  const displaySections = [
+    ...sections.map((s, index) => ({
+      ...s,
+      icon: iconMap[s.slug || ""] || Folder,
+      featured: index === 0,
+      count: "Услуги",
+    })),
     {
-      id: "1",
-      title: "Юридическим лицам",
-      description: "Сопровождение бизнеса, арбитраж, банкротство, корпоративные споры",
-      href: "/services",
-      icon: Building2,
-      count: stats.business > 0 ? `${stats.business} услуг` : "Услуги",
-      featured: true,
-    },
-    {
-      id: "2",
-      title: "Физическим лицам",
-      description: "Семейное право, наследство, недвижимость, трудовые споры",
-      href: "/services",
-      icon: Users,
-      count: stats.individual > 0 ? `${stats.individual} услуг` : "Услуги",
-      featured: false,
-    },
-    {
-      id: "3",
-      title: "Спецпредложения",
-      description: "VIP-сопровождение, абонентское обслуживание, медиация",
-      href: "/services",
-      icon: Sparkles,
-      count: stats.special > 0 ? `${stats.special} услуг` : "Услуги",
-      featured: false,
-    },
-    {
-      id: "4",
+      id: "cases",
       title: "Кейсы",
       description: "Успешно завершённые дела и реальные результаты",
       href: "/cases",
+      slug: "cases",
       icon: Briefcase,
-      count: casesCount > 0 ? `${casesCount}+ кейсов` : "Кейсы",
       featured: false,
+      count: casesCount > 0 ? `${casesCount}+ кейсов` : "Кейсы",
     },
   ];
 
@@ -121,7 +133,7 @@ export function ServicesGrid() {
 
         {/* Grid */}
         <div className="grid md:grid-cols-2 gap-4">
-          {sections.map((section, index) => {
+          {displaySections.map((section, index) => {
             const Icon = section.icon;
             return (
               <motion.div

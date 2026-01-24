@@ -1,23 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 
-interface SectionItem {
-  id: string;
-  name: string;
-  href: string;
-}
-
-// Дефолтные услуги
-const defaultServices = [
-  { id: "1", name: "Юридическим лицам", href: "/services/business" },
-  { id: "2", name: "Физическим лицам", href: "/services/individual" },
-  { id: "3", name: "Спецпредложения", href: "/services/special" },
-];
-
-const staticNavigation = {
+const navigation = {
+  services: [
+    { title: "Юридическим лицам", href: "/services/business" },
+    { title: "Физическим лицам", href: "/services/individual" },
+    { title: "Спецпредложения", href: "/services/special" },
+    { title: "Цены", href: "/prices" },
+  ],
   company: [
     { title: "О нас", href: "/about" },
     { title: "Кейсы", href: "/cases" },
@@ -36,22 +28,6 @@ const staticNavigation = {
 };
 
 export function Footer() {
-  const [services, setServices] = useState<SectionItem[]>(defaultServices);
-
-  useEffect(() => {
-    fetch("/api/public/sections")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.data && data.data.length > 0) {
-          setServices(data.data.map((s: any) => ({
-            id: s.id,
-            name: s.name,
-            href: s.href,
-          })));
-        }
-      })
-      .catch(console.error);
-  }, []);
   return (
     <footer className="border-t border-border">
       {/* Main Footer */}
@@ -94,24 +70,16 @@ export function Footer() {
                 Услуги
               </h4>
               <ul className="space-y-3">
-                {services.map((item) => (
-                  <li key={item.id}>
+                {navigation.services.map((item) => (
+                  <li key={item.href}>
                     <Link
                       href={item.href}
                       className="text-sm hover:text-muted-foreground transition-colors line-animate inline-block"
                     >
-                      {item.name}
+                      {item.title}
                     </Link>
                   </li>
                 ))}
-                <li>
-                  <Link
-                    href="/prices"
-                    className="text-sm hover:text-muted-foreground transition-colors line-animate inline-block"
-                  >
-                    Цены
-                  </Link>
-                </li>
               </ul>
             </div>
 
@@ -120,7 +88,7 @@ export function Footer() {
                 Компания
               </h4>
               <ul className="space-y-3">
-                {staticNavigation.company.map((item) => (
+                {navigation.company.map((item) => (
                   <li key={item.href}>
                     <Link
                       href={item.href}
@@ -138,7 +106,7 @@ export function Footer() {
                 Правовая информация
               </h4>
               <ul className="space-y-3">
-                {staticNavigation.legal.map((item) => (
+                {navigation.legal.map((item) => (
                   <li key={item.href}>
                     <Link
                       href={item.href}
@@ -156,7 +124,7 @@ export function Footer() {
                 Соцсети
               </h4>
               <ul className="space-y-3">
-                {staticNavigation.social.map((item) => (
+                {navigation.social.map((item) => (
                   <li key={item.href}>
                     <a
                       href={item.href}

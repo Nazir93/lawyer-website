@@ -24,13 +24,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Message {
   id: string;
-  conversation_id: string;
-  sender_id: string;
-  receiver_id: string;
-  message_text: string | null;
+  conversationId: string;
+  senderId: string;
+  receiverId: string;
+  messageText: string | null;
   attachments: Array<{ filename: string; url: string; size: number }> | null;
-  is_read: boolean;
-  created_at: string;
+  isRead: boolean;
+  createdAt: string;
 }
 
 interface Conversation {
@@ -258,7 +258,7 @@ export default function AdminMessagesPage() {
                       </div>
                     ) : (
                       messages.map((msg) => {
-                        const isAdmin = msg.sender_id !== currentConversation.user_id;
+                        const isAdmin = msg.senderId !== currentConversation.user_id;
                         return (
                           <div
                             key={msg.id}
@@ -272,7 +272,7 @@ export default function AdminMessagesPage() {
                               }`}
                             >
                               <p className="text-sm whitespace-pre-wrap">
-                                {msg.message_text}
+                                {msg.messageText}
                               </p>
                               <div className="flex items-center gap-2 mt-1">
                                 <p
@@ -282,9 +282,9 @@ export default function AdminMessagesPage() {
                                       : "text-muted-foreground"
                                   }`}
                                 >
-                                  {formatTime(msg.created_at)}
+                                  {formatTime(msg.createdAt)}
                                 </p>
-                                {isAdmin && msg.is_read && (
+                                {isAdmin && msg.isRead && (
                                   <CheckCircle className="h-3 w-3 text-primary-foreground/70" />
                                 )}
                               </div>

@@ -30,11 +30,20 @@ import { Badge } from "@/components/ui/badge";
 import { SearchDropdown } from "./search-dropdown";
 import { useAuth } from "@/hooks/use-auth";
 
-const exploreItems = [
-  { title: "Юридическим лицам", href: "/services/business" },
-  { title: "Физическим лицам", href: "/services/individual" },
-  { title: "Спецпредложения", href: "/services/special" },
+// Дефолтные разделы (используются пока не загружены из БД)
+const defaultExploreItems = [
+  { name: "Юридическим лицам", href: "/services/business" },
+  { name: "Физическим лицам", href: "/services/individual" },
+  { name: "Спецпредложения", href: "/services/special" },
 ];
+
+interface SectionItem {
+  id: string;
+  name: string;
+  slug: string;
+  href: string;
+  children?: SectionItem[];
+}
 
 const navigation = [
   { title: "Кейсы", href: "/cases" },
@@ -50,17 +59,35 @@ export function Header() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
+  const [sections, setSections] = React.useState<SectionItem[]>([]);
   const pathname = usePathname();
   const { isLoggedIn, user, profile, logout, isLoading: authLoading } = useAuth();
 
+  // Загружаем разделы из БД
   React.useEffect(() => {
     setMounted(true);
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener("scroll", handleScroll);
+
+    // Загружаем разделы
+    fetch("/api/public/sections")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.data && data.data.length > 0) {
+          setSections(data.data);
+        }
+      })
+      .catch(console.error);
+
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Используем разделы из БД или дефолтные
+  const exploreItems = sections.length > 0 
+    ? sections 
+    : defaultExploreItems;
 
   return (
     <>
@@ -97,11 +124,25 @@ export function Header() {
                         <ChevronDown className="h-3 w-3" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-48">
+                    <DropdownMenuContent align="start" className="w-56">
                       {exploreItems.map((item) => (
-                        <DropdownMenuItem key={item.href} asChild>
-                          <Link href={item.href}>{item.title}</Link>
-                        </DropdownMenuItem>
+                        <div key={item.href}>
+                          <DropdownMenuItem asChild>
+                            <Link href={item.href} className="font-medium">{item.name}</Link>
+                          </DropdownMenuItem>
+                          {/* Подразделы */}
+                          {item.children && item.children.length > 0 && (
+                            <div className="pl-4 border-l border-border ml-2 mb-1">
+                              {item.children.map((child) => (
+                                <DropdownMenuItem key={child.href} asChild>
+                                  <Link href={child.href} className="text-sm text-muted-foreground">
+                                    {child.name}
+                                  </Link>
+                                </DropdownMenuItem>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -362,14 +403,30 @@ export function Header() {
                   Услуги
                 </p>
                 {exploreItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="block py-2 px-3 text-lg hover:bg-secondary rounded-lg transition-colors"
-                  >
-                    {item.title}
-                  </Link>
+                  <div key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="block py-2 px-3 text-lg font-medium hover:bg-secondary rounded-lg transition-colors"
+                    >
+                      {item.name}
+                    </Link>
+                    {/* Подразделы в мобильном меню */}
+                    {item.children && item.children.length > 0 && (
+                      <div className="ml-4 border-l border-border pl-3">
+                        {item.children.map((child) => (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={() => setIsMobileMenuOpen(false)}
+                            className="block py-1.5 px-3 text-base text-muted-foreground hover:bg-secondary rounded-lg transition-colors"
+                          >
+                            {child.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
 

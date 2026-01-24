@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { uploadFile } from "@/lib/storage";
 
+// Разрешаем большие файлы для загрузки
+export const config = {
+  api: {
+    bodyParser: false,
+    responseLimit: false,
+  },
+};
+
+// Увеличиваем лимит размера тела запроса
+export const maxDuration = 60; // 60 секунд таймаут
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -11,9 +22,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Файл не найден" }, { status: 400 });
     }
 
-    // Проверка типа файла (расширенный список для документов)
+    // Проверка типа файла (расширенный список для документов и видео)
     const allowedTypes = [
       "image/jpeg", "image/png", "image/webp", "image/gif",
+      "video/mp4", "video/webm", "video/ogg", "video/quicktime",
       "application/pdf",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -21,21 +33,22 @@ export async function POST(request: NextRequest) {
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "text/plain",
     ];
-    const allowedExtensions = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".jpg", ".jpeg", ".png", ".webp", ".gif"];
+    const allowedExtensions = [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".webm", ".ogg", ".mov"];
     const fileExt = "." + file.name.split(".").pop()?.toLowerCase();
     
     if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExt)) {
       return NextResponse.json(
-        { error: "Недопустимый тип файла. Разрешены: PDF, DOC, DOCX, XLS, XLSX, TXT, JPG, PNG, WebP, GIF" },
+        { error: "Недопустимый тип файла. Разрешены: PDF, DOC, DOCX, XLS, XLSX, TXT, JPG, PNG, WebP, GIF, MP4, WebM" },
         { status: 400 }
       );
     }
 
-    // Проверка размера (макс 10MB для документов)
-    const maxSize = 10 * 1024 * 1024;
+    // Проверка размера (макс 50MB для видео, 10MB для остальных)
+    const isVideo = file.type.startsWith("video/") || [".mp4", ".webm", ".ogg", ".mov"].includes(fileExt);
+    const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: "Файл слишком большой. Максимум 10MB" },
+        { error: `Файл слишком большой. Максимум ${isVideo ? "50MB" : "10MB"}` },
         { status: 400 }
       );
     }

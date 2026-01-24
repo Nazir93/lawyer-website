@@ -2,6 +2,33 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { HeroContentType, VideoType, TextPosition } from "@prisma/client";
 
+// Преобразование данных из БД в формат для фронтенда (snake_case)
+function transformToFrontend(dbData: any) {
+  if (!dbData) return null;
+  
+  return {
+    id: dbData.id,
+    content_type: dbData.contentType?.toLowerCase() || 'image',
+    image_url: dbData.imageUrl,
+    video_url: dbData.videoUrl,
+    video_type: dbData.videoType?.toLowerCase() || null,
+    title: dbData.title,
+    subtitle: dbData.subtitle,
+    description: dbData.description,
+    primary_button_text: dbData.primaryButtonText,
+    primary_button_link: dbData.primaryButtonLink,
+    secondary_button_text: dbData.secondaryButtonText,
+    secondary_button_link: dbData.secondaryButtonLink,
+    badge_text: dbData.badgeText,
+    show_badge: dbData.showBadge,
+    stats: dbData.stats || [],
+    overlay_opacity: dbData.overlayOpacity ? parseFloat(String(dbData.overlayOpacity)) : 0.3,
+    text_position: dbData.textPosition?.toLowerCase() || 'center',
+    is_active: dbData.isActive,
+    sort_order: dbData.sortOrder,
+  };
+}
+
 // GET - Получить hero контент
 export async function GET() {
   try {
@@ -10,7 +37,8 @@ export async function GET() {
       orderBy: { sortOrder: "asc" },
     });
     
-    return NextResponse.json({ data: data || null });
+    // Преобразуем в snake_case для фронтенда
+    return NextResponse.json({ data: transformToFrontend(data) });
   } catch (error) {
     console.error("Error fetching hero:", error);
     // Возвращаем null вместо ошибки, чтобы компонент мог использовать дефолтные значения
@@ -65,7 +93,8 @@ export async function PUT(request: NextRequest) {
       });
     }
     
-    return NextResponse.json({ data, success: true });
+    // Преобразуем в snake_case для фронтенда
+    return NextResponse.json({ data: transformToFrontend(data), success: true });
   } catch (error) {
     console.error("Error updating hero:", error);
     const errorMessage = error instanceof Error ? error.message : "Ошибка сохранения hero контента";

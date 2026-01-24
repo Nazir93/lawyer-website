@@ -38,12 +38,12 @@ interface Conversation {
 
 interface Message {
   id: string;
-  sender_id: string;
-  receiver_id: string | null;
-  message_text: string;
+  senderId: string;
+  receiverId: string | null;
+  messageText: string;
   attachments: Array<{ filename: string; url: string; type: string; size: number }>;
-  created_at: string;
-  is_read: boolean;
+  createdAt: string;
+  isRead: boolean;
 }
 
 export default function MessagesPage() {
@@ -58,7 +58,7 @@ export default function MessagesPage() {
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
-    loadConversations();
+    loadConversations(true); // Показываем загрузку только при первом открытии
     loadCurrentUser();
   }, []);
 
@@ -96,9 +96,9 @@ export default function MessagesPage() {
     }
   };
 
-  const loadConversations = async () => {
+  const loadConversations = async (showLoading = false) => {
     try {
-      setIsLoading(true);
+      if (showLoading) setIsLoading(true);
       const res = await fetch("/api/dashboard/conversations");
       const data = await res.json();
       
@@ -125,7 +125,7 @@ export default function MessagesPage() {
         
         // Отмечаем сообщения как прочитанные
         const unreadIds = data.data
-          .filter((m: Message) => !m.is_read && m.receiver_id === currentUserId)
+          .filter((m: Message) => !m.isRead && m.receiverId === currentUserId)
           .map((m: Message) => m.id);
         
         if (unreadIds.length > 0) {
@@ -334,7 +334,7 @@ export default function MessagesPage() {
                   </div>
                 ) : (
                   messages.map((message) => {
-                    const isMe = message.sender_id === currentUserId;
+                    const isMe = message.senderId === currentUserId;
                     return (
                       <motion.div
                         key={message.id}
@@ -358,7 +358,7 @@ export default function MessagesPage() {
                               : "bg-secondary"
                           )}
                         >
-                          <p className="text-sm">{message.message_text}</p>
+                          <p className="text-sm">{message.messageText}</p>
                           {message.attachments && message.attachments.length > 0 && (
                             <div className="mt-2 space-y-2">
                               {message.attachments.map((att, idx) => (
@@ -385,7 +385,7 @@ export default function MessagesPage() {
                                 : "text-muted-foreground"
                             )}
                           >
-                            {formatDateTime(message.created_at)}
+                            {formatDateTime(message.createdAt)}
                           </p>
                         </div>
                       </motion.div>

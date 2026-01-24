@@ -10,7 +10,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     
     const conversationId = searchParams.get("conversation_id");
-    const conversationType = searchParams.get("conversation_type") || "general";
     const caseId = searchParams.get("case_id");
     
     // Определяем ID беседы
@@ -23,10 +22,15 @@ export async function GET(request: NextRequest) {
       }
     }
     
+    // Получаем сообщения только по conversationId
     const data = await prisma.message.findMany({
       where: {
         conversationId: convId,
-        conversationType: conversationType.toUpperCase() as ConversationType,
+        // Убеждаемся что пользователь участник беседы
+        OR: [
+          { senderId: user.id },
+          { receiverId: user.id },
+        ],
       },
       orderBy: { createdAt: "asc" },
     });

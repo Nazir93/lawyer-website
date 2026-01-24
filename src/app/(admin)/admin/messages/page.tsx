@@ -57,7 +57,7 @@ export default function AdminMessagesPage() {
   const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
-    loadConversations();
+    loadConversations(true); // Показываем загрузку только при первом открытии
   }, []);
 
   // Автообновление каждые 5 секунд
@@ -78,9 +78,9 @@ export default function AdminMessagesPage() {
     }
   }, [selectedConversation]);
 
-  const loadConversations = async () => {
+  const loadConversations = async (showLoading = false) => {
     try {
-      setIsLoading(true);
+      if (showLoading) setIsLoading(true);
       const res = await fetch("/api/admin/conversations");
       const data = await res.json();
       if (res.ok) {
@@ -89,7 +89,7 @@ export default function AdminMessagesPage() {
     } catch (error) {
       console.error("Error loading conversations:", error);
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   };
 

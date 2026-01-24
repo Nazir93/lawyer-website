@@ -11,6 +11,7 @@ import {
   Video,
   User,
   Loader2,
+  MessageSquarePlus,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,11 +55,24 @@ export default function MessagesPage() {
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     loadConversations();
     loadCurrentUser();
   }, []);
+
+  // Автообновление каждые 5 секунд
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadConversations();
+      if (selectedConversation) {
+        loadMessages(selectedConversation.conversation_id);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [selectedConversation]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -159,6 +173,34 @@ export default function MessagesPage() {
     }
   };
 
+  const handleStartNewConversation = async () => {
+    setIsCreating(true);
+    try {
+      const res = await fetch("/api/dashboard/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversation_type: "general",
+        }),
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.data) {
+        toast.success("Диалог создан! Напишите ваше сообщение.");
+        await loadConversations();
+        // Выбираем новый диалог
+        setSelectedConversation(data.data);
+      } else {
+        toast.error(data.error || "Ошибка создания диалога");
+      }
+    } catch (error) {
+      toast.error("Ошибка создания диалога");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <div className="h-[calc(100vh-8rem)]">
       <div className="flex h-full rounded-2xl border border-border overflow-hidden">
@@ -166,7 +208,22 @@ export default function MessagesPage() {
         <div className="w-80 border-r border-border flex flex-col">
           {/* Header */}
           <div className="p-4 border-b border-border">
-            <h2 className="text-lg font-medium mb-3">Сообщения</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-medium">Сообщения</h2>
+              <Button
+                size="sm"
+                onClick={handleStartNewConversation}
+                disabled={isCreating}
+                className="gap-1"
+              >
+                {isCreating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MessageSquarePlus className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">Написать</span>
+              </Button>
+            </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input

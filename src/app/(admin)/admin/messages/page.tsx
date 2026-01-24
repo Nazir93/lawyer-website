@@ -60,6 +60,18 @@ export default function AdminMessagesPage() {
     loadConversations();
   }, []);
 
+  // Автообновление каждые 5 секунд
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadConversations();
+      if (selectedConversation) {
+        loadMessages(selectedConversation);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [selectedConversation]);
+
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation);

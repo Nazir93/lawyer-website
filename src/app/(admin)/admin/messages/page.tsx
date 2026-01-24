@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatDateShort, formatTime } from "@/lib/utils/date";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+// Для сообщений из API /api/admin/messages (camelCase от Prisma)
 interface Message {
   id: string;
   conversationId: string;
@@ -31,6 +32,14 @@ interface Message {
   attachments: Array<{ filename: string; url: string; size: number }> | null;
   isRead: boolean;
   createdAt: string;
+}
+
+// Для последнего сообщения в списке бесед (snake_case от API)
+interface LastMessage {
+  message_text: string;
+  created_at: string;
+  sender_id: string;
+  is_read: boolean;
 }
 
 interface Conversation {
@@ -43,7 +52,7 @@ interface Conversation {
   updated_at: string;
   user_name?: string;
   user_email?: string;
-  last_message?: Message;
+  last_message?: LastMessage;
   unread_count?: number;
 }
 

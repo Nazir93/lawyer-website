@@ -180,7 +180,7 @@ export default function MessagesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          conversation_type: "general",
+          conversation_type: "GENERAL",
         }),
       });
       

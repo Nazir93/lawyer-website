@@ -87,7 +87,10 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
     const body = await request.json();
-    const { conversation_type = "general", case_id = null } = body;
+    const { conversation_type = "GENERAL", case_id = null } = body;
+    
+    // Преобразуем тип в верхний регистр для enum
+    const convType = conversation_type.toUpperCase() as "GENERAL" | "CASE" | "SUPPORT";
     
     // Находим адвоката/админа
     const lawyer = await prisma.user.findFirst({
@@ -108,7 +111,7 @@ export async function POST(request: NextRequest) {
           { senderId: user.id, receiverId: lawyer.id },
           { senderId: lawyer.id, receiverId: user.id },
         ],
-        conversationType: conversation_type,
+        conversationType: convType,
         ...(case_id ? { caseId: case_id } : {}),
       },
       orderBy: { createdAt: "desc" },
@@ -143,7 +146,7 @@ export async function POST(request: NextRequest) {
         senderId: lawyer.id,
         receiverId: user.id,
         messageText: "Здравствуйте! Чем могу помочь?",
-        conversationType: conversation_type,
+        conversationType: convType,
         caseId: case_id,
         isRead: false,
       },
@@ -152,7 +155,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       data: {
         conversation_id: conversationId,
-        conversation_type: conversation_type,
+        conversation_type: convType,
         case_id: case_id,
         last_message: welcomeMessage.messageText,
         last_message_time: welcomeMessage.createdAt,

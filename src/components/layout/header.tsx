@@ -30,20 +30,20 @@ import { Badge } from "@/components/ui/badge";
 import { SearchDropdown } from "./search-dropdown";
 import { useAuth } from "@/hooks/use-auth";
 
-// Дефолтные разделы (используются пока не загружены из БД)
-const defaultExploreItems = [
-  { name: "Юридическим лицам", href: "/services/business" },
-  { name: "Физическим лицам", href: "/services/individual" },
-  { name: "Спецпредложения", href: "/services/special" },
-];
-
 interface SectionItem {
-  id: string;
+  id?: string;
   name: string;
-  slug: string;
+  slug?: string;
   href: string;
   children?: SectionItem[];
 }
+
+// Дефолтные разделы (используются пока не загружены из БД)
+const defaultExploreItems: SectionItem[] = [
+  { name: "Юридическим лицам", href: "/services/business", children: [] },
+  { name: "Физическим лицам", href: "/services/individual", children: [] },
+  { name: "Спецпредложения", href: "/services/special", children: [] },
+];
 
 const navigation = [
   { title: "Кейсы", href: "/cases" },

@@ -244,7 +244,7 @@ export default function AdminMessagesPage() {
         </Card>
 
         {/* Переписка */}
-        <Card className="lg:col-span-2 flex flex-col">
+        <Card className="lg:col-span-2 flex flex-col overflow-hidden">
           {selectedConversation && currentConversation ? (
             <>
               <CardHeader className="border-b">
@@ -262,8 +262,9 @@ export default function AdminMessagesPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="flex-1 flex flex-col p-0">
-                <ScrollArea className="flex-1 p-6">
+              <CardContent className="flex-1 flex flex-col p-0 min-h-0 overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <ScrollArea className="h-full p-6">
                   <div className="space-y-4">
                     {messages.length === 0 ? (
                       <div className="text-center text-muted-foreground text-sm py-8">
@@ -307,7 +308,8 @@ export default function AdminMessagesPage() {
                       })
                     )}
                   </div>
-                </ScrollArea>
+                  </ScrollArea>
+                </div>
                 <div className="border-t p-4">
                   <div className="flex gap-2">
                     <Textarea

@@ -289,7 +289,7 @@ export default function MessagesPage() {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0">
           {/* Chat Header */}
           {selectedConversation ? (
             <div className="p-4 border-b border-border flex items-center justify-between">
@@ -326,75 +326,77 @@ export default function MessagesPage() {
 
           {/* Messages */}
           {selectedConversation && (
-            <ScrollArea className="flex-1 p-4">
-              <div className="space-y-4">
-                {messages.length === 0 ? (
-                  <div className="text-center py-8 text-sm text-muted-foreground">
-                    Нет сообщений
-                  </div>
-                ) : (
-                  messages.map((message) => {
-                    const isMe = message.senderId === currentUserId;
-                    return (
-                      <motion.div
-                        key={message.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={cn(
-                          "flex gap-3",
-                          isMe ? "justify-end" : "justify-start"
-                        )}
-                      >
-                        {!isMe && (
-                          <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-medium shrink-0">
-                            {selectedConversation.participant.name.charAt(0)}
-                          </div>
-                        )}
-                        <div
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <ScrollArea className="h-full">
+                <div className="space-y-4 p-4">
+                  {messages.length === 0 ? (
+                    <div className="text-center py-8 text-sm text-muted-foreground">
+                      Нет сообщений
+                    </div>
+                  ) : (
+                    messages.map((message) => {
+                      const isMe = message.senderId === currentUserId;
+                      return (
+                        <motion.div
+                          key={message.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
                           className={cn(
-                            "max-w-md rounded-2xl px-4 py-2",
-                            isMe
-                              ? "bg-foreground text-background"
-                              : "bg-secondary"
+                            "flex gap-3",
+                            isMe ? "justify-end" : "justify-start"
                           )}
                         >
-                          <p className="text-sm">{message.messageText}</p>
-                          {message.attachments && message.attachments.length > 0 && (
-                            <div className="mt-2 space-y-2">
-                              {message.attachments.map((att, idx) => (
-                                <div key={idx} className="p-2 rounded-lg bg-background/10 flex items-center gap-2">
-                                  <Paperclip className="h-4 w-4" />
-                                  <a
-                                    href={att.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-xs hover:underline"
-                                  >
-                                    <p className="font-medium">{att.filename}</p>
-                                    <p className="opacity-70">{(att.size / 1024).toFixed(1)} KB</p>
-                                  </a>
-                                </div>
-                              ))}
+                          {!isMe && (
+                            <div className="w-8 h-8 rounded-full bg-foreground text-background flex items-center justify-center text-xs font-medium shrink-0">
+                              {selectedConversation.participant.name.charAt(0)}
                             </div>
                           )}
-                          <p
+                          <div
                             className={cn(
-                              "text-xs mt-1",
+                              "max-w-md rounded-2xl px-4 py-2",
                               isMe
-                                ? "text-background/50"
-                                : "text-muted-foreground"
+                                ? "bg-foreground text-background"
+                                : "bg-secondary"
                             )}
                           >
-                            {formatDateTime(message.createdAt)}
-                          </p>
-                        </div>
-                      </motion.div>
-                    );
-                  })
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-            </ScrollArea>
+                            <p className="text-sm">{message.messageText}</p>
+                            {message.attachments && message.attachments.length > 0 && (
+                              <div className="mt-2 space-y-2">
+                                {message.attachments.map((att, idx) => (
+                                  <div key={idx} className="p-2 rounded-lg bg-background/10 flex items-center gap-2">
+                                    <Paperclip className="h-4 w-4" />
+                                    <a
+                                      href={att.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs hover:underline"
+                                    >
+                                      <p className="font-medium">{att.filename}</p>
+                                      <p className="opacity-70">{(att.size / 1024).toFixed(1)} KB</p>
+                                    </a>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <p
+                              className={cn(
+                                "text-xs mt-1",
+                                isMe
+                                  ? "text-background/50"
+                                  : "text-muted-foreground"
+                              )}
+                            >
+                              {formatDateTime(message.createdAt)}
+                            </p>
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+              </ScrollArea>
+            </div>
           )}
 
           {/* Input */}

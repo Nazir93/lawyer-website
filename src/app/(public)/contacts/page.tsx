@@ -3,6 +3,8 @@ import { Phone, Mail, MapPin, Clock, ArrowUpRight } from "lucide-react";
 import { ContactForm } from "@/components/forms/contact-form";
 import { prisma } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
 async function getSettings() {
   const data = await prisma.siteSettings.findFirst();
   return data;

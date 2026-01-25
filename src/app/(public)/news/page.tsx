@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/utils/date";
 
+export const dynamic = 'force-dynamic';
+
 async function getNews() {
   const data = await prisma.news.findMany({
     where: { isPublished: true },

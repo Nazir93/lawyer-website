@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/db";
 
+// Force dynamic rendering to avoid static generation database calls
+export const dynamic = 'force-dynamic';
+
 async function getCases() {
   const data = await prisma.case.findMany({
     where: { isActive: true },

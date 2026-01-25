@@ -8,6 +8,8 @@ import { Separator } from "@/components/ui/separator";
 import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/utils/date";
 
+export const dynamic = 'force-dynamic';
+
 async function getCase(slug: string) {
   const data = await prisma.case.findUnique({
     where: { slug, isActive: true },

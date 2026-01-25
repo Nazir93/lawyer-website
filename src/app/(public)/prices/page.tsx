@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
 import type { Pricing } from "@prisma/client";
 
+export const dynamic = 'force-dynamic';
+
 async function getPricing() {
   const data = await prisma.pricing.findMany({
     where: { isActive: true },

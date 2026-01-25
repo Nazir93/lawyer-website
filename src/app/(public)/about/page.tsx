@@ -3,6 +3,8 @@ import { ArrowUpRight, Award, BookOpen, Briefcase, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+
 async function getSettings() {
   const data = await prisma.siteSettings.findFirst();
   return data;

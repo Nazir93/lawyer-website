@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
 import { formatDate } from "@/lib/utils/date";
 
+export const dynamic = 'force-dynamic';
+
 async function getNews(slug: string) {
   const data = await prisma.news.findUnique({
     where: { slug },

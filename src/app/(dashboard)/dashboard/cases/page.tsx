@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
@@ -13,9 +13,11 @@ import {
   ArrowUpRight,
   FileText,
   Calendar,
-  User,
+  Briefcase,
+  Scale,
+  Gavel,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -26,51 +28,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatDateShort } from "@/lib/utils/date";
 
-// Временные данные
-const cases = [
-  {
-    id: "1",
-    title: "Раздел имущества при разводе",
-    type: "Семейное право",
-    status: "in_progress",
-    statusLabel: "В работе",
-    lawyer: "Адвокат И.И. Иванов",
-    startDate: "15 декабря 2023",
-    lastUpdate: "2 дня назад",
-    nextAction: "Подготовка искового заявления",
-    nextDate: "26 января 2024",
-    progress: 45,
-  },
-  {
-    id: "2",
-    title: "Взыскание задолженности по договору",
-    type: "Гражданское право",
-    status: "pending",
-    statusLabel: "Ожидание",
-    lawyer: "Адвокат И.И. Иванов",
-    startDate: "5 января 2024",
-    lastUpdate: "5 дней назад",
-    nextAction: "Ожидание ответа от должника",
-    nextDate: "30 января 2024",
-    progress: 25,
-  },
-  {
-    id: "3",
-    title: "Наследственный спор",
-    type: "Наследственное право",
-    status: "completed",
-    statusLabel: "Завершено",
-    lawyer: "Адвокат И.И. Иванов",
-    startDate: "10 сентября 2023",
-    lastUpdate: "1 месяц назад",
-    nextAction: "Дело успешно закрыто",
-    nextDate: null,
-    progress: 100,
-  },
-];
+interface Case {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  category: string | null;
+  status: string;
+  status_label: string;
+  progress: number;
+  next_action: string | null;
+  next_action_date: string | null;
+  start_date: string;
+  updated_at: string;
+}
 
-const statusConfig = {
+const statusConfig: Record<string, { color: string; textColor: string; bgColor: string; icon: React.ElementType }> = {
+  consultation: {
+    color: "bg-purple-500",
+    textColor: "text-purple-600 dark:text-purple-400",
+    bgColor: "bg-purple-50 dark:bg-purple-950",
+    icon: Briefcase,
+  },
   in_progress: {
     color: "bg-blue-500",
     textColor: "text-blue-600 dark:text-blue-400",
@@ -83,13 +64,25 @@ const statusConfig = {
     bgColor: "bg-yellow-50 dark:bg-yellow-950",
     icon: Clock,
   },
+  court: {
+    color: "bg-orange-500",
+    textColor: "text-orange-600 dark:text-orange-400",
+    bgColor: "bg-orange-50 dark:bg-orange-950",
+    icon: Gavel,
+  },
+  appeal: {
+    color: "bg-indigo-500",
+    textColor: "text-indigo-600 dark:text-indigo-400",
+    bgColor: "bg-indigo-50 dark:bg-indigo-950",
+    icon: Scale,
+  },
   completed: {
     color: "bg-green-500",
     textColor: "text-green-600 dark:text-green-400",
     bgColor: "bg-green-50 dark:bg-green-950",
     icon: CheckCircle2,
   },
-  attention: {
+  cancelled: {
     color: "bg-red-500",
     textColor: "text-red-600 dark:text-red-400",
     bgColor: "bg-red-50 dark:bg-red-950",
@@ -98,8 +91,29 @@ const statusConfig = {
 };
 
 export default function MyCasesPage() {
+  const [cases, setCases] = useState<Case[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  useEffect(() => {
+    loadCases();
+  }, []);
+
+  const loadCases = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch("/api/dashboard/cases");
+      const data = await res.json();
+      if (res.ok) {
+        setCases(data.data || []);
+      }
+    } catch (error) {
+      console.error("Error loading cases:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredCases = cases.filter((c) => {
     const matchesSearch = c.title.toLowerCase().includes(searchQuery.toLowerCase());
@@ -107,8 +121,29 @@ export default function MyCasesPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const activeCases = cases.filter((c) => c.status !== "completed").length;
+  const activeCases = cases.filter((c) => c.status !== "completed" && c.status !== "cancelled").length;
   const completedCases = cases.filter((c) => c.status === "completed").length;
+
+  const getRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return "сегодня";
+    if (diffDays === 1) return "вчера";
+    if (diffDays < 7) return `${diffDays} дн. назад`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} нед. назад`;
+    return `${Math.floor(diffDays / 30)} мес. назад`;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -138,7 +173,7 @@ export default function MyCasesPage() {
               </div>
               <div>
                 <p className="text-2xl font-light">
-                  {cases.filter((c) => c.status === "in_progress").length}
+                  {cases.filter((c) => c.status === "in_progress" || c.status === "court").length}
                 </p>
                 <p className="text-sm text-muted-foreground">В работе</p>
               </div>
@@ -153,7 +188,7 @@ export default function MyCasesPage() {
               </div>
               <div>
                 <p className="text-2xl font-light">
-                  {cases.filter((c) => c.status === "pending").length}
+                  {cases.filter((c) => c.status === "pending" || c.status === "consultation").length}
                 </p>
                 <p className="text-sm text-muted-foreground">Ожидание</p>
               </div>
@@ -193,8 +228,11 @@ export default function MyCasesPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Все статусы</SelectItem>
+            <SelectItem value="consultation">Консультация</SelectItem>
             <SelectItem value="in_progress">В работе</SelectItem>
             <SelectItem value="pending">Ожидание</SelectItem>
+            <SelectItem value="court">В суде</SelectItem>
+            <SelectItem value="appeal">Апелляция</SelectItem>
             <SelectItem value="completed">Завершено</SelectItem>
           </SelectContent>
         </Select>
@@ -202,116 +240,134 @@ export default function MyCasesPage() {
 
       {/* Cases List */}
       <div className="space-y-4">
-        {filteredCases.map((caseItem, index) => {
-          const status = statusConfig[caseItem.status as keyof typeof statusConfig];
-          const StatusIcon = status.icon;
-          return (
-            <motion.div
-              key={caseItem.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <Link href={`/dashboard/cases/${caseItem.id}`}>
-                <Card className="hover:border-foreground/20 transition-all cursor-pointer">
-                  <CardContent className="p-6">
-                    <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-                      {/* Main Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-3 mb-3">
-                          <div
-                            className={`w-10 h-10 rounded-full ${status.bgColor} flex items-center justify-center shrink-0`}
-                          >
-                            <StatusIcon className={`h-5 w-5 ${status.textColor}`} />
-                          </div>
-                          <div className="min-w-0">
-                            <h3 className="text-lg font-medium truncate">
-                              {caseItem.title}
-                            </h3>
-                            <div className="flex flex-wrap items-center gap-2 mt-1">
-                              <Badge variant="secondary">{caseItem.type}</Badge>
-                              <Badge
-                                variant="outline"
-                                className={`${status.textColor} border-current`}
-                              >
-                                {caseItem.statusLabel}
-                              </Badge>
+        {filteredCases.length > 0 ? (
+          filteredCases.map((caseItem, index) => {
+            const status = statusConfig[caseItem.status] || statusConfig.in_progress;
+            const StatusIcon = status.icon;
+            return (
+              <motion.div
+                key={caseItem.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Link href={`/dashboard/cases/${caseItem.id}`}>
+                  <Card className="hover:border-foreground/20 transition-all cursor-pointer">
+                    <CardContent className="p-6">
+                      <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+                        {/* Main Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start gap-3 mb-3">
+                            <div
+                              className={`w-10 h-10 rounded-full ${status.bgColor} flex items-center justify-center shrink-0`}
+                            >
+                              <StatusIcon className={`h-5 w-5 ${status.textColor}`} />
                             </div>
-                          </div>
-                        </div>
-
-                        {/* Meta */}
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <User className="h-3.5 w-3.5" />
-                            {caseItem.lawyer}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5" />
-                            Начато: {caseItem.startDate}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5" />
-                            Обновлено: {caseItem.lastUpdate}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Progress & Next Action */}
-                      <div className="lg:w-64 lg:text-right">
-                        {caseItem.status !== "completed" && (
-                          <>
-                            <div className="mb-2">
-                              <span className="text-sm text-muted-foreground">
-                                Прогресс
-                              </span>
-                              <div className="flex items-center gap-2 mt-1">
-                                <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-foreground rounded-full transition-all"
-                                    style={{ width: `${caseItem.progress}%` }}
-                                  />
-                                </div>
-                                <span className="text-sm font-medium">
-                                  {caseItem.progress}%
-                                </span>
+                            <div className="min-w-0">
+                              <h3 className="text-lg font-medium truncate">
+                                {caseItem.title}
+                              </h3>
+                              <div className="flex flex-wrap items-center gap-2 mt-1">
+                                {caseItem.category && (
+                                  <Badge variant="secondary">{caseItem.category}</Badge>
+                                )}
+                                <Badge
+                                  variant="outline"
+                                  className={`${status.textColor} border-current`}
+                                >
+                                  {caseItem.status_label}
+                                </Badge>
                               </div>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              {caseItem.nextAction}
-                            </p>
-                            {caseItem.nextDate && (
-                              <p className="text-sm font-medium">
-                                {caseItem.nextDate}
-                              </p>
-                            )}
-                          </>
-                        )}
-                        {caseItem.status === "completed" && (
-                          <div className="flex items-center justify-end gap-2 text-green-600 dark:text-green-400">
-                            <CheckCircle2 className="h-5 w-5" />
-                            <span className="font-medium">
-                              Дело успешно закрыто
+                          </div>
+
+                          {/* Meta */}
+                          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3.5 w-3.5" />
+                              Начато: {formatDateShort(caseItem.start_date)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5" />
+                              Обновлено: {getRelativeTime(caseItem.updated_at)}
                             </span>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            </motion.div>
-          );
-        })}
-      </div>
+                        </div>
 
-      {filteredCases.length === 0 && (
-        <div className="text-center py-12">
-          <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-          <p className="text-muted-foreground">Дела не найдены</p>
-        </div>
-      )}
+                        {/* Progress & Next Action */}
+                        <div className="lg:w-64 lg:text-right">
+                          {caseItem.status !== "completed" && caseItem.status !== "cancelled" && (
+                            <>
+                              <div className="mb-2">
+                                <span className="text-sm text-muted-foreground">
+                                  Прогресс
+                                </span>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-foreground rounded-full transition-all"
+                                      style={{ width: `${caseItem.progress}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-sm font-medium">
+                                    {caseItem.progress}%
+                                  </span>
+                                </div>
+                              </div>
+                              {caseItem.next_action && (
+                                <p className="text-sm text-muted-foreground">
+                                  {caseItem.next_action}
+                                </p>
+                              )}
+                              {caseItem.next_action_date && (
+                                <p className="text-sm font-medium">
+                                  {formatDateShort(caseItem.next_action_date)}
+                                </p>
+                              )}
+                            </>
+                          )}
+                          {caseItem.status === "completed" && (
+                            <div className="flex items-center justify-end gap-2 text-green-600 dark:text-green-400">
+                              <CheckCircle2 className="h-5 w-5" />
+                              <span className="font-medium">
+                                Дело успешно закрыто
+                              </span>
+                            </div>
+                          )}
+                          {caseItem.status === "cancelled" && (
+                            <div className="flex items-center justify-end gap-2 text-red-600 dark:text-red-400">
+                              <AlertCircle className="h-5 w-5" />
+                              <span className="font-medium">
+                                Дело отменено
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </motion.div>
+            );
+          })
+        ) : cases.length === 0 ? (
+          <div className="text-center py-12">
+            <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+            <p className="text-muted-foreground mb-4">У вас пока нет дел</p>
+            <Button className="rounded-full" asChild>
+              <Link href="/contacts">
+                Записаться на консультацию
+                <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <FileText className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+            <p className="text-muted-foreground">Дела не найдены по заданным фильтрам</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-

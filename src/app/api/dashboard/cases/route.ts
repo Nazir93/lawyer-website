@@ -16,12 +16,36 @@ export async function GET() {
       include: {
         case: true,
       },
+      orderBy: {
+        case: {
+          updatedAt: "desc",
+        },
+      },
     });
     
-    // Фильтруем только активные дела
+    // Преобразуем в формат для фронтенда
     const cases = userCases
       .filter(uc => uc.case.isActive)
-      .map(uc => uc.case);
+      .map(uc => {
+        const c = uc.case;
+        return {
+          id: c.id,
+          title: c.title,
+          slug: c.slug,
+          description: c.description,
+          category: c.category,
+          status: c.caseStatus.toLowerCase(),
+          status_label: getStatusLabel(c.caseStatus),
+          progress: c.progress,
+          next_action: c.nextAction,
+          next_action_date: c.nextActionDate?.toISOString() || null,
+          start_date: c.startDate.toISOString(),
+          client_name: c.clientName,
+          image_url: c.imageUrl,
+          created_at: c.createdAt.toISOString(),
+          updated_at: c.updatedAt.toISOString(),
+        };
+      });
     
     return NextResponse.json({ data: cases, count: cases.length });
   } catch (error) {
@@ -33,4 +57,17 @@ export async function GET() {
     
     return NextResponse.json({ error: "Ошибка получения дел" }, { status: 500 });
   }
+}
+
+function getStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    CONSULTATION: "Консультация",
+    IN_PROGRESS: "В работе",
+    PENDING: "Ожидание",
+    COURT: "В суде",
+    APPEAL: "Апелляция",
+    COMPLETED: "Завершено",
+    CANCELLED: "Отменено",
+  };
+  return labels[status] || status;
 }

@@ -236,25 +236,33 @@ enum ServiceGroup {
 // =====================================================
 
 model Case {
-  id              String   @id @default(cuid())
+  id              String     @id @default(cuid())
   title           String
-  slug            String   @unique
+  slug            String     @unique
   description     String?
-  content         String?  @db.Text
+  content         String?    @db.Text
   imageUrl        String?
   category        String?
-  result          String
-  year            Int      @default(2024)
+  result          String?
+  year            Int        @default(2024)
   clientName      String?
   duration        String?
+  
+  // Отслеживание дела клиента
+  caseStatus      CaseStatus @default(CONSULTATION)
+  progress        Int        @default(0)       // 0-100%
+  nextAction      String?                      // Следующее действие
+  nextActionDate  DateTime?                    // Дата следующего действия
+  startDate       DateTime   @default(now())   // Дата начала дела
   
   // SEO
   metaTitle       String?
   metaDescription String?
   
-  // Статус
-  isFeatured      Boolean  @default(false)
-  isActive        Boolean  @default(true)
+  // Статус публикации (для портфолио)
+  isFeatured      Boolean    @default(false)
+  isActive        Boolean    @default(true)
+  isPublic        Boolean    @default(false)   // Показывать в публичном портфолио
   
   // Связи
   documents       ClientDocument[]
@@ -262,8 +270,18 @@ model Case {
   userCases       UserCase[]
   appointments    Appointment[]
   
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+enum CaseStatus {
+  CONSULTATION    // Консультация
+  IN_PROGRESS     // В работе
+  PENDING         // Ожидание
+  COURT           // В суде
+  APPEAL          // Апелляция
+  COMPLETED       // Завершено
+  CANCELLED       // Отменено
 }
 
 // =====================================================

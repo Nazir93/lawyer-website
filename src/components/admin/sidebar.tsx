@@ -19,6 +19,7 @@ import {
   Calendar,
   Menu,
   X,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,11 @@ const navigation = [
         title: "Отзывы",
         href: "/admin/reviews",
         icon: Users,
+      },
+      {
+        title: "Цены",
+        href: "/admin/pricing",
+        icon: CreditCard,
       },
     ],
   },

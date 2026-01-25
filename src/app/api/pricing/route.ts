@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
 // GET - Получить все тарифы
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const activeOnly = searchParams.get("active") === "true";
+    
     const data = await prisma.pricing.findMany({
-      where: { isActive: true },
+      where: activeOnly ? { isActive: true } : {},
       orderBy: { sortOrder: "asc" },
     });
     

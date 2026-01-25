@@ -27,7 +27,11 @@ import {
 } from "@/components/ui/form";
 import Link from "next/link";
 import { toast } from "sonner";
-import type { Service } from "@prisma/client";
+
+interface ServiceOption {
+  id: string;
+  title: string;
+}
 
 const formSchema = z.object({
   name: z.string().min(2, "Введите ваше имя"),
@@ -45,7 +49,7 @@ type FormData = z.infer<typeof formSchema>;
 export function ContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [services, setServices] = useState<Service[]>([]);
+  const [services, setServices] = useState<ServiceOption[]>([]);
   const [isLoadingServices, setIsLoadingServices] = useState(true);
 
   const form = useForm<FormData>({
@@ -63,9 +67,47 @@ export function ContactForm() {
   useEffect(() => {
     async function loadServices() {
       try {
-        const response = await fetch("/api/services?active=true");
-        const data = await response.json();
-        setServices(data.data || []);
+        // Загружаем и услуги, и разделы
+        const [servicesRes, sectionsRes] = await Promise.all([
+          fetch("/api/services?active=true"),
+          fetch("/api/public/sections"),
+        ]);
+        
+        const servicesData = await servicesRes.json();
+        const sectionsData = await sectionsRes.json();
+        
+        // Объединяем услуги и разделы
+        const allOptions: ServiceOption[] = [];
+        
+        // Добавляем услуги
+        if (servicesData.data) {
+          allOptions.push(...servicesData.data.map((s: { id: string; title: string }) => ({
+            id: s.id,
+            title: s.title,
+          })));
+        }
+        
+        // Добавляем разделы (если услуг нет или их мало)
+        if (sectionsData.data) {
+          sectionsData.data.forEach((section: { id: string; name: string; children?: { id: string; name: string }[] }) => {
+            // Добавляем родительский раздел
+            allOptions.push({
+              id: section.id,
+              title: section.name,
+            });
+            // Добавляем подразделы
+            if (section.children) {
+              section.children.forEach((child: { id: string; name: string }) => {
+                allOptions.push({
+                  id: child.id,
+                  title: `  → ${child.name}`,
+                });
+              });
+            }
+          });
+        }
+        
+        setServices(allOptions);
       } catch (error) {
         console.error("Error loading services:", error);
       } finally {
@@ -80,14 +122,16 @@ export function ContactForm() {
     setIsSubmitting(true);
 
     try {
+      // Находим название выбранной услуги/раздела
+      const selectedService = services.find((s) => s.id === data.service);
+      const serviceName = selectedService?.title?.replace("  → ", "") || data.service;
+      
       const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...data,
-          service: data.service
-            ? services.find((s) => s.id === data.service)?.title || data.service
-            : null,
+          service: data.service ? serviceName : null,
         }),
       });
 

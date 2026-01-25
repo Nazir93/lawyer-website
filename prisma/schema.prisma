@@ -614,3 +614,30 @@ enum AppointmentStatus {
   CANCELLED
   RESCHEDULED
 }
+
+// =====================================================
+// ВРЕМЕННЫЕ ОКНА ДЛЯ ЗАПИСИ
+// =====================================================
+
+model TimeSlot {
+  id            String       @id @default(cuid())
+  date          DateTime     @db.Date           // Дата слота
+  startTime     String                          // Время начала "09:00"
+  endTime       String                          // Время окончания "10:00"
+  isBooked      Boolean      @default(false)    // Занят ли слот
+  isAvailable   Boolean      @default(true)     // Доступен ли для бронирования
+  
+  // Связь с записью (если слот забронирован)
+  appointmentId String?      @unique
+  
+  // Повторяющиеся слоты (если нужно создать на основе шаблона)
+  isRecurring   Boolean      @default(false)
+  
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  
+  @@unique([date, startTime])
+  @@index([date])
+  @@index([isBooked])
+  @@index([isAvailable])
+}

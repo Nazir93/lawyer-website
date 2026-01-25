@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -14,6 +13,8 @@ import {
   Edit,
   Trash2,
   Loader2,
+  Settings,
+  Check,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,92 +24,91 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateShort, formatTime } from "@/lib/utils/date";
 import { toast } from "sonner";
 
+interface TimeSlot {
+  id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  is_booked: boolean;
+  is_available: boolean;
+  appointment_id: string | null;
+}
+
 interface Appointment {
   id: string;
-  user_id: string;
-  lawyer_id: string;
+  userId: string;
   title: string;
   description: string | null;
-  appointment_time: string;
-  duration_minutes: number;
-  type: "online" | "offline";
-  status: "scheduled" | "completed" | "cancelled";
-  meeting_link: string | null;
-  created_at: string;
+  appointmentDate: string;
+  durationMinutes: number;
+  type: string;
+  status: string;
   user_name?: string;
   user_email?: string;
 }
 
 const DAYS_OF_WEEK = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 const MONTHS = [
-  "Январь",
-  "Февраль",
-  "Март",
-  "Апрель",
-  "Май",
-  "Июнь",
-  "Июль",
-  "Август",
-  "Сентябрь",
-  "Октябрь",
-  "Ноябрь",
-  "Декабрь",
+  "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+  "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
 ];
 
 export default function AdminCalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
-  const [formData, setFormData] = useState({
-    user_id: "",
-    title: "",
-    description: "",
-    appointment_time: "",
-    duration_minutes: 60,
-    type: "online" as "online" | "offline",
-    meeting_link: "",
+  const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateSettings, setGenerateSettings] = useState({
+    start_hour: 9,
+    end_hour: 18,
+    slot_duration: 60,
+    skip_weekends: true,
   });
-  const [users, setUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
 
   useEffect(() => {
-    loadAppointments();
-    loadUsers();
+    loadData();
   }, [currentMonth]);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    await Promise.all([loadTimeSlots(), loadAppointments()]);
+    setIsLoading(false);
+  };
+
+  const loadTimeSlots = async () => {
+    try {
+      const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+      const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+
+      const res = await fetch(
+        `/api/admin/timeslots?start=${startOfMonth.toISOString()}&end=${endOfMonth.toISOString()}`
+      );
+      const data = await res.json();
+      if (res.ok) {
+        setTimeSlots(data.data || []);
+      }
+    } catch (error) {
+      console.error("Error loading time slots:", error);
+    }
+  };
 
   const loadAppointments = async () => {
     try {
-      setIsLoading(true);
-      const startOfMonth = new Date(
-        currentMonth.getFullYear(),
-        currentMonth.getMonth(),
-        1
-      );
-      const endOfMonth = new Date(
-        currentMonth.getFullYear(),
-        currentMonth.getMonth() + 1,
-        0,
-        23,
-        59,
-        59
-      );
+      const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+      const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0, 23, 59, 59);
 
       const res = await fetch(
         `/api/admin/appointments?start=${startOfMonth.toISOString()}&end=${endOfMonth.toISOString()}`
@@ -119,20 +119,6 @@ export default function AdminCalendarPage() {
       }
     } catch (error) {
       console.error("Error loading appointments:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadUsers = async () => {
-    try {
-      const res = await fetch("/api/admin/users");
-      const data = await res.json();
-      if (res.ok) {
-        setUsers(data.data || []);
-      }
-    } catch (error) {
-      console.error("Error loading users:", error);
     }
   };
 
@@ -142,130 +128,106 @@ export default function AdminCalendarPage() {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = (firstDay.getDay() + 6) % 7; // Понедельник = 0
+    const startingDayOfWeek = (firstDay.getDay() + 6) % 7;
 
     const days = [];
-    // Пустые ячейки для дней предыдущего месяца
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
-    // Дни текущего месяца
     for (let i = 1; i <= daysInMonth; i++) {
       days.push(new Date(year, month, i));
     }
     return days;
   };
 
+  const getSlotsForDate = (date: Date | null) => {
+    if (!date) return [];
+    const dateStr = date.toISOString().split("T")[0];
+    return timeSlots.filter((slot) => slot.date === dateStr);
+  };
+
   const getAppointmentsForDate = (date: Date | null) => {
     if (!date) return [];
     const dateStr = date.toISOString().split("T")[0];
     return appointments.filter((apt) => {
-      const aptDate = new Date(apt.appointment_time).toISOString().split("T")[0];
+      const aptDate = new Date(apt.appointmentDate).toISOString().split("T")[0];
       return aptDate === dateStr;
     });
   };
 
-  const handleSave = async () => {
-    if (!formData.user_id || !formData.title || !formData.appointment_time) {
-      toast.error("Заполните все обязательные поля");
+  const handleGenerateSlots = async () => {
+    if (!selectedDate) {
+      toast.error("Выберите дату");
       return;
     }
 
+    setIsGenerating(true);
     try {
-      const url = editingAppointment
-        ? `/api/admin/appointments/${editingAppointment.id}`
-        : "/api/admin/appointments";
-      const method = editingAppointment ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method,
+      const res = await fetch("/api/admin/timeslots", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData,
-          duration_minutes: parseInt(formData.duration_minutes.toString()),
+          date: selectedDate.toISOString(),
+          generate_week: true,
+          ...generateSettings,
         }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        toast.success(
-          editingAppointment
-            ? "Запись обновлена"
-            : "Запись создана"
-        );
-        setIsDialogOpen(false);
-        setEditingAppointment(null);
-        setFormData({
-          user_id: "",
-          title: "",
-          description: "",
-          appointment_time: "",
-          duration_minutes: 60,
-          type: "online",
-          meeting_link: "",
-        });
-        loadAppointments();
+        toast.success(`Создано ${data.count} слотов`);
+        setIsGenerateDialogOpen(false);
+        loadTimeSlots();
       } else {
-        toast.error(data.error || "Ошибка сохранения");
+        toast.error(data.error || "Ошибка создания слотов");
       }
     } catch (error) {
-      console.error("Error saving appointment:", error);
-      toast.error("Ошибка сохранения");
+      toast.error("Ошибка создания слотов");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Удалить запись?")) return;
-
+  const handleDeleteSlot = async (slotId: string) => {
     try {
-      const res = await fetch(`/api/admin/appointments/${id}`, {
+      const res = await fetch(`/api/admin/timeslots?id=${slotId}`, {
         method: "DELETE",
       });
 
       if (res.ok) {
-        toast.success("Запись удалена");
-        loadAppointments();
+        toast.success("Слот удалён");
+        loadTimeSlots();
       } else {
         toast.error("Ошибка удаления");
       }
     } catch (error) {
-      console.error("Error deleting appointment:", error);
       toast.error("Ошибка удаления");
     }
   };
 
-  const openDialog = (date?: Date, appointment?: Appointment) => {
-    if (appointment) {
-      setEditingAppointment(appointment);
-      setFormData({
-        user_id: appointment.user_id,
-        title: appointment.title,
-        description: appointment.description || "",
-        appointment_time: new Date(appointment.appointment_time)
-          .toISOString()
-          .slice(0, 16),
-        duration_minutes: appointment.duration_minutes,
-        type: appointment.type,
-        meeting_link: appointment.meeting_link || "",
+  const handleDeleteDaySlots = async () => {
+    if (!selectedDate) return;
+    if (!confirm("Удалить все незанятые слоты за этот день?")) return;
+
+    try {
+      const dateStr = selectedDate.toISOString().split("T")[0];
+      const res = await fetch(`/api/admin/timeslots?date=${dateStr}`, {
+        method: "DELETE",
       });
-    } else if (date) {
-      setSelectedDate(date);
-      const dateTime = new Date(date);
-      dateTime.setHours(10, 0, 0, 0);
-      setFormData({
-        user_id: "",
-        title: "",
-        description: "",
-        appointment_time: dateTime.toISOString().slice(0, 16),
-        duration_minutes: 60,
-        type: "online",
-        meeting_link: "",
-      });
+
+      if (res.ok) {
+        toast.success("Слоты удалены");
+        loadTimeSlots();
+      } else {
+        toast.error("Ошибка удаления");
+      }
+    } catch (error) {
+      toast.error("Ошибка удаления");
     }
-    setIsDialogOpen(true);
   };
 
   const days = getDaysInMonth();
+  const selectedDateSlots = getSlotsForDate(selectedDate);
   const selectedDateAppointments = getAppointmentsForDate(selectedDate);
 
   return (
@@ -274,12 +236,12 @@ export default function AdminCalendarPage() {
         <div>
           <h1 className="text-3xl font-bold">Календарь записей</h1>
           <p className="text-muted-foreground">
-            Управление записями клиентов на консультации
+            Управление временными окнами и записями клиентов
           </p>
         </div>
-        <Button onClick={() => openDialog()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Новая запись
+        <Button onClick={() => setIsGenerateDialogOpen(true)}>
+          <Settings className="mr-2 h-4 w-4" />
+          Настроить расписание
         </Button>
       </div>
 
@@ -291,14 +253,7 @@ export default function AdminCalendarPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => {
-                  setCurrentMonth(
-                    new Date(
-                      currentMonth.getFullYear(),
-                      currentMonth.getMonth() - 1
-                    )
-                  );
-                }}
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -308,14 +263,7 @@ export default function AdminCalendarPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => {
-                  setCurrentMonth(
-                    new Date(
-                      currentMonth.getFullYear(),
-                      currentMonth.getMonth() + 1
-                    )
-                  );
-                }}
+                onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -330,37 +278,25 @@ export default function AdminCalendarPage() {
               <>
                 <div className="grid grid-cols-7 gap-1 mb-2">
                   {DAYS_OF_WEEK.map((day) => (
-                    <div
-                      key={day}
-                      className="text-center text-sm font-medium text-muted-foreground py-2"
-                    >
+                    <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
                       {day}
                     </div>
                   ))}
                 </div>
                 <div className="grid grid-cols-7 gap-1">
                   {days.map((day, index) => {
-                    const dayAppointments = day
-                      ? getAppointmentsForDate(day)
-                      : [];
-                    const isToday =
-                      day &&
-                      day.toDateString() === new Date().toDateString();
-                    const isSelected =
-                      day &&
-                      selectedDate &&
-                      day.toDateString() === selectedDate.toDateString();
+                    const daySlots = day ? getSlotsForDate(day) : [];
+                    const dayAppointments = day ? getAppointmentsForDate(day) : [];
+                    const availableCount = daySlots.filter((s) => !s.is_booked && s.is_available).length;
+                    const bookedCount = daySlots.filter((s) => s.is_booked).length;
+                    const isToday = day && day.toDateString() === new Date().toDateString();
+                    const isSelected = day && selectedDate && day.toDateString() === selectedDate.toDateString();
 
                     return (
                       <button
                         key={index}
-                        onClick={() => {
-                          if (day) {
-                            setSelectedDate(day);
-                            openDialog(day);
-                          }
-                        }}
-                        className={`aspect-square p-1 rounded-lg border transition-colors ${
+                        onClick={() => day && setSelectedDate(day)}
+                        className={`aspect-square p-1 rounded-lg border transition-colors text-left ${
                           !day
                             ? "border-transparent"
                             : isSelected
@@ -372,132 +308,151 @@ export default function AdminCalendarPage() {
                       >
                         {day && (
                           <>
-                            <div className="text-sm font-medium mb-1">
-                              {day.getDate()}
+                            <div className="text-sm font-medium mb-1">{day.getDate()}</div>
+                            <div className="space-y-0.5">
+                              {availableCount > 0 && (
+                                <div className="text-[10px] px-1 py-0.5 rounded bg-green-500/20 text-green-600 truncate">
+                                  {availableCount} своб.
+                                </div>
+                              )}
+                              {bookedCount > 0 && (
+                                <div className="text-[10px] px-1 py-0.5 rounded bg-blue-500/20 text-blue-600 truncate">
+                                  {bookedCount} зап.
+                                </div>
+                              )}
                             </div>
-                            {dayAppointments.length > 0 && (
-                              <div className="space-y-0.5">
-                                {dayAppointments.slice(0, 2).map((apt) => (
-                                  <div
-                                    key={apt.id}
-                                    className={`text-[10px] px-1 py-0.5 rounded truncate ${
-                                      apt.status === "completed"
-                                        ? "bg-green-500/20 text-green-600"
-                                        : apt.status === "cancelled"
-                                        ? "bg-red-500/20 text-red-600"
-                                        : "bg-blue-500/20 text-blue-600"
-                                    }`}
-                                  >
-                                    {formatTime(apt.appointment_time)}
-                                  </div>
-                                ))}
-                                {dayAppointments.length > 2 && (
-                                  <div className="text-[10px] text-muted-foreground">
-                                    +{dayAppointments.length - 2}
-                                  </div>
-                                )}
-                              </div>
-                            )}
                           </>
                         )}
                       </button>
                     );
                   })}
                 </div>
+                <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded bg-green-500/20" />
+                    Свободные окна
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded bg-blue-500/20" />
+                    Занятые окна
+                  </div>
+                </div>
               </>
             )}
           </CardContent>
         </Card>
 
-        {/* Список записей на выбранную дату */}
+        {/* Слоты на выбранную дату */}
         <Card>
-          <CardHeader>
-            <CardTitle>
-              {selectedDate
-                ? formatDateShort(selectedDate.toISOString())
-                : "Выберите дату"}
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-lg">
+              {selectedDate ? formatDateShort(selectedDate.toISOString()) : "Выберите дату"}
             </CardTitle>
+            {selectedDate && selectedDateSlots.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={handleDeleteDaySlots}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {selectedDate ? (
-              selectedDateAppointments.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  Нет записей на эту дату
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {selectedDateAppointments.map((apt) => (
-                    <div
-                      key={apt.id}
-                      className="p-3 rounded-lg border border-border hover:bg-secondary transition-colors"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-sm mb-1">
-                            {apt.title}
-                          </h4>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                            <Clock className="h-3 w-3" />
-                            {formatTime(apt.appointment_time)} (
-                            {apt.duration_minutes} мин)
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                            <User className="h-3 w-3" />
-                            {apt.user_name || apt.user_email || "Клиент"}
-                          </div>
-                          {apt.type === "online" ? (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <Video className="h-3 w-3" />
-                              Онлайн
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <MapPin className="h-3 w-3" />
-                              Офлайн
-                            </div>
-                          )}
-                        </div>
-                        <Badge
-                          variant={
-                            apt.status === "completed"
-                              ? "default"
-                              : apt.status === "cancelled"
-                              ? "destructive"
-                              : "secondary"
-                          }
-                          className="text-xs"
-                        >
-                          {apt.status === "completed"
-                            ? "Завершено"
-                            : apt.status === "cancelled"
-                            ? "Отменено"
-                            : "Запланировано"}
-                        </Badge>
-                      </div>
-                      <div className="flex gap-2 mt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => openDialog(undefined, apt)}
-                        >
-                          <Edit className="h-3 w-3 mr-1" />
-                          Изменить
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handleDelete(apt.id)}
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          Удалить
-                        </Button>
-                      </div>
+              <Tabs defaultValue="slots">
+                <TabsList className="w-full mb-4">
+                  <TabsTrigger value="slots" className="flex-1">Окна ({selectedDateSlots.length})</TabsTrigger>
+                  <TabsTrigger value="appointments" className="flex-1">Записи ({selectedDateAppointments.length})</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="slots">
+                  {selectedDateSlots.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-sm text-muted-foreground mb-4">Нет окон на этот день</p>
+                      <Button size="sm" onClick={() => setIsGenerateDialogOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Создать окна
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              )
+                  ) : (
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                      {selectedDateSlots
+                        .sort((a, b) => a.start_time.localeCompare(b.start_time))
+                        .map((slot) => (
+                          <div
+                            key={slot.id}
+                            className={`p-3 rounded-lg border flex items-center justify-between ${
+                              slot.is_booked
+                                ? "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800"
+                                : "border-border"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Clock className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">{slot.start_time} - {slot.end_time}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {slot.is_booked ? (
+                                <Badge variant="secondary" className="bg-blue-500/10 text-blue-600">
+                                  Занято
+                                </Badge>
+                              ) : (
+                                <>
+                                  <Badge variant="secondary" className="bg-green-500/10 text-green-600">
+                                    Свободно
+                                  </Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => handleDeleteSlot(slot.id)}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="appointments">
+                  {selectedDateAppointments.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                      Нет записей на этот день
+                    </p>
+                  ) : (
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                      {selectedDateAppointments.map((apt) => (
+                        <div key={apt.id} className="p-3 rounded-lg border border-border">
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-medium text-sm">{apt.title}</h4>
+                            <Badge
+                              variant={apt.status === "COMPLETED" ? "default" : apt.status === "CANCELLED" ? "destructive" : "secondary"}
+                              className="text-xs"
+                            >
+                              {apt.status === "COMPLETED" ? "Завершено" : apt.status === "CANCELLED" ? "Отменено" : "Запланировано"}
+                            </Badge>
+                          </div>
+                          <div className="space-y-1 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-3 w-3" />
+                              {formatTime(apt.appointmentDate)} ({apt.durationMinutes} мин)
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <User className="h-3 w-3" />
+                              {apt.user_name || apt.user_email || "Клиент"}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {apt.type === "ONLINE" ? <Video className="h-3 w-3" /> : <MapPin className="h-3 w-3" />}
+                              {apt.type === "ONLINE" ? "Онлайн" : "В офисе"}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-8">
                 Выберите дату в календаре
@@ -507,146 +462,77 @@ export default function AdminCalendarPage() {
         </Card>
       </div>
 
-      {/* Диалог создания/редактирования записи */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl">
+      {/* Диалог настройки расписания */}
+      <Dialog open={isGenerateDialogOpen} onOpenChange={setIsGenerateDialogOpen}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {editingAppointment ? "Изменить запись" : "Новая запись"}
-            </DialogTitle>
+            <DialogTitle>Настройка расписания</DialogTitle>
+            <DialogDescription>
+              Создание временных окон для записи клиентов на неделю начиная с{" "}
+              {selectedDate ? formatDateShort(selectedDate.toISOString()) : "выбранной даты"}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="user_id">Клиент *</Label>
-              <Select
-                value={formData.user_id}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, user_id: value })
-                }
-              >
-                <SelectTrigger id="user_id">
-                  <SelectValue placeholder="Выберите клиента" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name} ({user.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
 
-            <div>
-              <Label htmlFor="title">Название *</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) =>
-                  setFormData({ ...formData, title: e.target.value })
-                }
-                placeholder="Консультация по делу..."
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="description">Описание</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                placeholder="Дополнительная информация..."
-                rows={3}
-              />
-            </div>
-
+          <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="appointment_time">Дата и время *</Label>
+              <div className="space-y-2">
+                <Label>Начало рабочего дня</Label>
                 <Input
-                  id="appointment_time"
-                  type="datetime-local"
-                  value={formData.appointment_time}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      appointment_time: e.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="duration_minutes">Длительность (мин) *</Label>
-                <Input
-                  id="duration_minutes"
                   type="number"
-                  value={formData.duration_minutes}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      duration_minutes: parseInt(e.target.value) || 60,
-                    })
-                  }
-                  min={15}
-                  max={480}
-                  step={15}
+                  min={6}
+                  max={20}
+                  value={generateSettings.start_hour}
+                  onChange={(e) => setGenerateSettings({ ...generateSettings, start_hour: parseInt(e.target.value) })}
                 />
               </div>
-            </div>
-
-            <div>
-              <Label htmlFor="type">Тип консультации *</Label>
-              <Select
-                value={formData.type}
-                onValueChange={(value: "online" | "offline") =>
-                  setFormData({ ...formData, type: value })
-                }
-              >
-                <SelectTrigger id="type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="online">Онлайн</SelectItem>
-                  <SelectItem value="offline">Офлайн</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {formData.type === "online" && (
-              <div>
-                <Label htmlFor="meeting_link">Ссылка на встречу</Label>
+              <div className="space-y-2">
+                <Label>Конец рабочего дня</Label>
                 <Input
-                  id="meeting_link"
-                  value={formData.meeting_link}
-                  onChange={(e) =>
-                    setFormData({ ...formData, meeting_link: e.target.value })
-                  }
-                  placeholder="https://zoom.us/j/..."
+                  type="number"
+                  min={8}
+                  max={23}
+                  value={generateSettings.end_hour}
+                  onChange={(e) => setGenerateSettings({ ...generateSettings, end_hour: parseInt(e.target.value) })}
                 />
               </div>
-            )}
+            </div>
 
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsDialogOpen(false);
-                  setEditingAppointment(null);
-                }}
-              >
-                Отмена
-              </Button>
-              <Button onClick={handleSave}>
-                {editingAppointment ? "Сохранить" : "Создать"}
-              </Button>
+            <div className="space-y-2">
+              <Label>Длительность слота (минут)</Label>
+              <Input
+                type="number"
+                min={15}
+                max={120}
+                step={15}
+                value={generateSettings.slot_duration}
+                onChange={(e) => setGenerateSettings({ ...generateSettings, slot_duration: parseInt(e.target.value) })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label>Пропускать выходные</Label>
+              <Switch
+                checked={generateSettings.skip_weekends}
+                onCheckedChange={(checked) => setGenerateSettings({ ...generateSettings, skip_weekends: checked })}
+              />
             </div>
           </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsGenerateDialogOpen(false)}>
+              Отмена
+            </Button>
+            <Button onClick={handleGenerateSlots} disabled={isGenerating || !selectedDate}>
+              {isGenerating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="mr-2 h-4 w-4" />
+              )}
+              Создать окна на неделю
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
-

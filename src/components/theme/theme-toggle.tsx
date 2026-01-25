@@ -46,10 +46,6 @@ export function ThemeToggle() {
           <Moon className="mr-2 h-4 w-4" />
           Тёмная
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>
-          <span className="mr-2">💻</span>
-          Системная
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

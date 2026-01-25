@@ -1,192 +1,186 @@
 "use client";
 
-import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { motion, useInView } from "framer-motion";
+import { useRef, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import {
-  FileText,
-  MessageSquare,
-  Calendar,
-  Briefcase,
-  CreditCard,
-  Settings,
-  ArrowUpRight,
-  CheckCircle,
-} from "lucide-react";
+import { useTheme } from "next-themes";
+import { ArrowUpRight, Shield, Clock, MessageSquare, FileText, Bell, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 
 const features = [
   {
     icon: FileText,
-    title: "Мои документы",
-    description: "Все ваши документы в одном месте. Быстрый доступ к договорам, справкам и другим файлам.",
-    color: "text-blue-600",
-    bgColor: "bg-blue-100 dark:bg-blue-900/30",
+    title: "Мои дела",
+    description: "Отслеживайте статус и прогресс ваших дел в реальном времени",
   },
   {
     icon: MessageSquare,
     title: "Сообщения",
-    description: "Прямая связь с вашим адвокатом. Задавайте вопросы и получайте ответы в реальном времени.",
-    color: "text-green-600",
-    bgColor: "bg-green-100 dark:bg-green-900/30",
+    description: "Прямая связь с вашим адвокатом в защищённом чате",
   },
   {
-    icon: Calendar,
-    title: "Встречи",
-    description: "Управляйте встречами и консультациями. Просматривайте расписание и записывайтесь онлайн.",
-    color: "text-purple-600",
-    bgColor: "bg-purple-100 dark:bg-purple-900/30",
+    icon: Clock,
+    title: "Записи",
+    description: "Планируйте консультации и встречи онлайн",
   },
   {
-    icon: Briefcase,
-    title: "Мои дела",
-    description: "Отслеживайте статус ваших дел. Видите все этапы работы и получайте уведомления об обновлениях.",
-    color: "text-orange-600",
-    bgColor: "bg-orange-100 dark:bg-orange-900/30",
+    icon: Shield,
+    title: "Документы",
+    description: "Безопасное хранение и обмен документами",
+  },
+  {
+    icon: Bell,
+    title: "Уведомления",
+    description: "Мгновенные уведомления о важных событиях",
   },
   {
     icon: CreditCard,
-    title: "Счета и оплата",
-    description: "Просматривайте счета, историю платежей и управляйте оплатой услуг онлайн.",
-    color: "text-red-600",
-    bgColor: "bg-red-100 dark:bg-red-900/30",
+    title: "Оплата",
+    description: "Удобная оплата услуг онлайн",
   },
-  {
-    icon: Settings,
-    title: "Настройки",
-    description: "Управляйте профилем, настройками уведомлений и безопасностью аккаунта.",
-    color: "text-gray-600",
-    bgColor: "bg-gray-100 dark:bg-gray-900/30",
-  },
-];
-
-const benefits = [
-  "Полный контроль над вашими делами",
-  "Прямая связь с адвокатом",
-  "Безопасное хранение документов",
-  "Прозрачность всех процессов",
-  "Уведомления о важных событиях",
-  "Доступ 24/7 из любого устройства",
 ];
 
 export function DashboardPreview() {
-  const sectionRef = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start end", "end start"],
-  });
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
-  const y = useTransform(scrollYProgress, [0, 1], [50, -50]);
-  const opacity = useTransform(scrollYProgress, [0, 0.3, 0.7, 1], [0, 1, 1, 0]);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   return (
-    <section ref={sectionRef} className="py-24 lg:py-32 relative">
-      <motion.div style={{ y, opacity }} className="container mx-auto px-6 lg:px-8">
+    <section ref={ref} className="py-24 lg:py-32 overflow-hidden">
+      <div className="container mx-auto px-6 lg:px-8">
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="max-w-3xl mx-auto text-center mb-16"
+          className="text-center max-w-3xl mx-auto mb-16"
         >
           <span className="text-sm text-muted-foreground uppercase tracking-widest mb-4 block">
             Личный кабинет
           </span>
-          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-light tracking-tight mb-6">
-            Всё под
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-light tracking-tight mb-6">
+            Все ваши дела
             <br />
-            <span className="font-serif italic">контролем</span>
+            <span className="font-serif italic">в одном месте</span>
           </h2>
-          <p className="text-lg text-muted-foreground leading-relaxed">
-            После регистрации вы получаете доступ к личному кабинету, где можете отслеживать все ваши дела,
-            общаться с адвокатом, просматривать документы и управлять встречами.
+          <p className="text-lg text-muted-foreground">
+            Удобный личный кабинет для отслеживания статуса дел, общения с адвокатом и управления документами
           </p>
         </motion.div>
 
+        {/* Dashboard Image */}
+        <motion.div
+          initial={{ opacity: 0, y: 60, scale: 0.95 }}
+          animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="relative max-w-6xl mx-auto mb-20"
+        >
+          {/* Glow effect */}
+          <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 via-primary/5 to-primary/20 rounded-3xl blur-2xl opacity-50" />
+          
+          {/* Browser frame */}
+          <div className="relative rounded-2xl overflow-hidden border border-border/50 shadow-2xl bg-background">
+            {/* Browser header */}
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50 bg-muted/30">
+              <div className="flex gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-red-500/80" />
+                <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
+                <div className="w-3 h-3 rounded-full bg-green-500/80" />
+              </div>
+              <div className="flex-1 mx-4">
+                <div className="max-w-md mx-auto px-4 py-1.5 rounded-lg bg-background/50 text-xs text-muted-foreground text-center">
+                  lawyer.ru/dashboard
+                </div>
+              </div>
+            </div>
+            
+            {/* Screenshot */}
+            <div className="relative">
+              {mounted ? (
+                <Image
+                  src={resolvedTheme === "dark" ? "/images/dashboard-dark.png" : "/images/dashboard-light.png"}
+                  alt="Личный кабинет клиента"
+                  width={1567}
+                  height={700}
+                  className="w-full h-auto"
+                  priority
+                />
+              ) : (
+                <div className="w-full aspect-[1567/700] bg-muted animate-pulse" />
+              )}
+            </div>
+          </div>
+
+          {/* Floating badges */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={isInView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="absolute -left-4 lg:-left-8 top-1/4 hidden md:flex items-center gap-2 px-4 py-2 rounded-full bg-background border border-border shadow-lg"
+          >
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-sm font-medium">Дело обновлено</span>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={isInView ? { opacity: 1, x: 0 } : {}}
+            transition={{ duration: 0.6, delay: 0.8 }}
+            className="absolute -right-4 lg:-right-8 top-1/3 hidden md:flex items-center gap-2 px-4 py-2 rounded-full bg-background border border-border shadow-lg"
+          >
+            <MessageSquare className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">Новое сообщение</span>
+          </motion.div>
+        </motion.div>
+
         {/* Features Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto mb-12"
+        >
           {features.map((feature, index) => {
             const Icon = feature.icon;
             return (
               <motion.div
                 key={feature.title}
                 initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
+                animate={isInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5, delay: 0.5 + index * 0.1 }}
+                className="group p-6 rounded-2xl border border-border/50 hover:border-border hover:bg-muted/30 transition-all duration-300"
               >
-                <Card className="h-full hover:border-foreground/20 transition-colors">
-                  <CardContent className="p-6">
-                    <div className={`w-12 h-12 rounded-xl ${feature.bgColor} flex items-center justify-center mb-4`}>
-                      <Icon className={`h-6 w-6 ${feature.color}`} />
-                    </div>
-                    <h3 className="text-xl font-medium mb-2">{feature.title}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {feature.description}
-                    </p>
-                  </CardContent>
-                </Card>
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                  <Icon className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="text-lg font-medium mb-2">{feature.title}</h3>
+                <p className="text-sm text-muted-foreground">{feature.description}</p>
               </motion.div>
             );
           })}
-        </div>
-
-        {/* Benefits */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="max-w-2xl mx-auto"
-        >
-          <Card>
-            <CardContent className="p-8">
-              <h3 className="text-2xl font-light tracking-tight mb-6 text-center">
-                Преимущества личного кабинета
-              </h3>
-              <div className="grid sm:grid-cols-2 gap-4">
-                {benefits.map((benefit, index) => (
-                  <motion.div
-                    key={benefit}
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.4, delay: 0.4 + index * 0.05 }}
-                    className="flex items-center gap-3"
-                  >
-                    <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
-                    <span className="text-sm">{benefit}</span>
-                  </motion.div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </motion.div>
 
         {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="mt-12 text-center"
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.6, delay: 0.8 }}
+          className="text-center"
         >
-          <Button size="lg" className="rounded-full px-8 h-14 text-base" asChild>
+          <Button size="lg" className="rounded-full px-8" asChild>
             <Link href="/register">
-              Создать аккаунт
+              Создать личный кабинет
               <ArrowUpRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
-          <p className="text-sm text-muted-foreground mt-4">
-            Уже есть аккаунт?{" "}
-            <Link href="/login" className="text-foreground hover:underline">
-              Войти
-            </Link>
-          </p>
         </motion.div>
-      </motion.div>
+      </div>
     </section>
   );
 }
-

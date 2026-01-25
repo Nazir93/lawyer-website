@@ -65,7 +65,14 @@ interface CaseDetail {
   }>;
 }
 
-const statusConfig: Record<string, { color: string; textColor: string; bgColor: string; icon: React.ElementType }> = {
+type StatusConfigItem = {
+  color: string;
+  textColor: string;
+  bgColor: string;
+  icon: typeof Clock;
+};
+
+const statusConfig: Record<string, StatusConfigItem> = {
   consultation: {
     color: "bg-purple-500",
     textColor: "text-purple-600 dark:text-purple-400",

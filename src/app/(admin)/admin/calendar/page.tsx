@@ -239,7 +239,12 @@ export default function AdminCalendarPage() {
             Управление временными окнами и записями клиентов
           </p>
         </div>
-        <Button onClick={() => setIsGenerateDialogOpen(true)}>
+        <Button onClick={() => {
+          if (!selectedDate) {
+            setSelectedDate(new Date());
+          }
+          setIsGenerateDialogOpen(true);
+        }}>
           <Settings className="mr-2 h-4 w-4" />
           Настроить расписание
         </Button>

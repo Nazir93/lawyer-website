@@ -67,13 +67,31 @@ export async function POST(request: NextRequest) {
 
     // Если нужно сгенерировать слоты на неделю
     if (generate_week) {
+      if (!date) {
+        return NextResponse.json(
+          { error: "Дата обязательна" },
+          { status: 400 }
+        );
+      }
+
       const startDate = new Date(date);
-      const slotsToCreate = [];
+      // Сбрасываем время на начало дня
+      startDate.setHours(0, 0, 0, 0);
+      
+      const slotsToCreate: Array<{
+        date: Date;
+        startTime: string;
+        endTime: string;
+        isAvailable: boolean;
+        isBooked: boolean;
+      }> = [];
 
       // Генерируем на 7 дней
       for (let d = 0; d < 7; d++) {
         const currentDate = new Date(startDate);
         currentDate.setDate(startDate.getDate() + d);
+        // Убеждаемся что время сброшено
+        currentDate.setHours(0, 0, 0, 0);
 
         // Пропускаем выходные если указано
         const dayOfWeek = currentDate.getDay();
@@ -94,7 +112,7 @@ export async function POST(request: NextRequest) {
           const endTime = `${endHourCalc.toString().padStart(2, "0")}:${endMinCalc.toString().padStart(2, "0")}`;
 
           slotsToCreate.push({
-            date: currentDate,
+            date: new Date(currentDate), // Копия даты
             startTime,
             endTime,
             isAvailable: true,
@@ -103,27 +121,40 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Создаём слоты, игнорируя дубликаты
+      console.log(`[TimeSlots] Generating ${slotsToCreate.length} slots starting from ${startDate.toISOString()}`);
+
+      // Создаём слоты один за другим
       const createdSlots = [];
       for (const slot of slotsToCreate) {
         try {
-          const created = await prisma.timeSlot.upsert({
+          // Проверяем существует ли слот
+          const existing = await prisma.timeSlot.findFirst({
             where: {
-              date_startTime: {
-                date: slot.date,
-                startTime: slot.startTime,
-              },
+              date: slot.date,
+              startTime: slot.startTime,
             },
-            update: {
-              isAvailable: true,
-            },
-            create: slot,
           });
-          createdSlots.push(created);
+
+          if (existing) {
+            // Обновляем если существует
+            const updated = await prisma.timeSlot.update({
+              where: { id: existing.id },
+              data: { isAvailable: true },
+            });
+            createdSlots.push(updated);
+          } else {
+            // Создаём новый
+            const created = await prisma.timeSlot.create({
+              data: slot,
+            });
+            createdSlots.push(created);
+          }
         } catch (e) {
-          // Игнорируем ошибки дубликатов
+          console.error("Error creating slot:", e);
         }
       }
+
+      console.log(`[TimeSlots] Created/updated ${createdSlots.length} slots`);
 
       return NextResponse.json({
         data: createdSlots,

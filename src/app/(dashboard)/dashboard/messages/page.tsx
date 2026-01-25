@@ -5,13 +5,10 @@ import { motion } from "framer-motion";
 import {
   Search,
   Send,
-  Paperclip,
-  MoreVertical,
-  Phone,
-  Video,
   User,
   Loader2,
   MessageSquarePlus,
+  FileIcon,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -306,17 +303,6 @@ export default function MessagesPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon">
-                  <Phone className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <Video className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </div>
             </div>
           ) : (
             <div className="p-4 border-b border-border text-center text-muted-foreground">
@@ -364,7 +350,7 @@ export default function MessagesPage() {
                               <div className="mt-2 space-y-2">
                                 {message.attachments.map((att, idx) => (
                                   <div key={idx} className="p-2 rounded-lg bg-background/10 flex items-center gap-2">
-                                    <Paperclip className="h-4 w-4" />
+                                    <FileIcon className="h-4 w-4" />
                                     <a
                                       href={att.url}
                                       target="_blank"
@@ -403,9 +389,6 @@ export default function MessagesPage() {
           {selectedConversation && (
             <div className="p-4 border-t border-border">
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon">
-                  <Paperclip className="h-4 w-4" />
-                </Button>
                 <Input
                   placeholder="Написать сообщение..."
                   value={newMessage}

@@ -29,10 +29,26 @@ export async function GET(request: NextRequest) {
       where.category = category.toUpperCase() as DocumentCategory;
     }
     
-    const data = await prisma.clientDocument.findMany({
+    const documents = await prisma.clientDocument.findMany({
       where,
       orderBy: { createdAt: "desc" },
     });
+    
+    // Преобразуем в snake_case для фронтенда
+    const data = documents.map((doc) => ({
+      id: doc.id,
+      filename: doc.filename,
+      original_filename: doc.originalFilename,
+      file_url: doc.fileUrl,
+      file_type: doc.fileType,
+      file_size: doc.fileSize,
+      title: doc.title,
+      description: doc.description,
+      category: doc.category?.toLowerCase() || "other",
+      status: doc.status?.toLowerCase() || "uploaded",
+      case_id: doc.caseId,
+      created_at: doc.createdAt.toISOString(),
+    }));
     
     return NextResponse.json({ data, count: data.length });
   } catch (error) {

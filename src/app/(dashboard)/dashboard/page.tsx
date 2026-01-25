@@ -369,7 +369,7 @@ export default function DashboardPage() {
                 className="w-full mt-4 rounded-full"
                 asChild
               >
-                <Link href="/dashboard/appointments/new">
+                <Link href="/dashboard/appointments">
                   Записаться на консультацию
                 </Link>
               </Button>
@@ -386,13 +386,13 @@ export default function DashboardPage() {
         <CardContent>
           <div className="grid sm:grid-cols-4 gap-3">
             <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
-              <Link href="/dashboard/messages/new">
+              <Link href="/dashboard/messages">
                 <MessageSquare className="h-5 w-5" />
                 <span className="text-sm">Написать юристу</span>
               </Link>
             </Button>
             <Button variant="outline" className="h-auto py-4 flex-col gap-2" asChild>
-              <Link href="/dashboard/appointments/new">
+              <Link href="/dashboard/appointments">
                 <Calendar className="h-5 w-5" />
                 <span className="text-sm">Записаться</span>
               </Link>

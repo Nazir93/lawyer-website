@@ -60,6 +60,8 @@ apt install -y postgresql postgresql-contrib
 # Запуск и автозагрузка
 systemctl start postgresql
 systemctl enable postgresql
+ssh root@130.49.150.220
+r1FkwCi85EQ1icOO
 
 # Создание базы данных
 sudo -u postgres psql << EOF
@@ -184,8 +186,17 @@ pm2 save
 cat > /etc/nginx/sites-available/lawyer << 'EOF'
 server {
     listen 80;
+    listen [::]:80;
     server_name ваш-домен.ru www.ваш-домен.ru;
 
+    # Логи
+    access_log /var/log/nginx/lawyer-access.log;
+    error_log /var/log/nginx/lawyer-error.log;
+
+    # Максимальный размер загружаемых файлов
+    client_max_body_size 50M;
+
+    # Проксирование на Next.js приложение
     location / {
         proxy_pass http://localhost:3000;
         proxy_http_version 1.1;
@@ -196,6 +207,11 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
+        
+        # Таймауты
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
     }
 
     # Статические файлы
@@ -208,29 +224,56 @@ server {
         alias /var/www/lawyer-website/public/uploads;
         add_header Cache-Control "public, max-age=86400";
     }
+
+    # Блокировка доступа к скрытым файлам
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
 }
 EOF
 
 # Активация сайта
 ln -s /etc/nginx/sites-available/lawyer /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
 
 # Проверка конфига
 nginx -t
 
 # Перезапуск Nginx
 systemctl restart nginx
-```
+
+# Открытие портов в файрволе
+ufw allow 'Nginx Full'
 
 ---
 
 ## Шаг 11: SSL сертификат (Let's Encrypt)
 
+**⚠️ Перед получением SSL убедитесь, что домен работает по HTTP!**
+
 ```bash
+# Установка Certbot (если не установлен)
+apt install -y certbot python3-certbot-nginx
+
 # Получение SSL сертификата
 certbot --nginx -d ваш-домен.ru -d www.ваш-домен.ru
 
+# Следуйте инструкциям:
+# - Введите email для уведомлений
+# - Согласитесь с условиями (A)
+# - Выберите редирект HTTP на HTTPS (2)
+
 # Автообновление (добавляется автоматически)
 # Проверить: systemctl status certbot.timer
+```
+
+**После получения SSL обновите NEXTAUTH_URL в .env.local:**
+```bash
+nano /var/www/lawyer-website/.env.local
+# Измените: NEXTAUTH_URL="https://ваш-домен.ru"
+pm2 restart lawyer-website
 ```
 
 ---

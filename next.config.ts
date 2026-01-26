@@ -15,6 +15,16 @@ const nextConfig: NextConfig = {
         hostname: "localhost",
       },
       {
+        protocol: "https",
+        hostname: "localhost",
+      },
+      // Добавьте ваш домен здесь после настройки
+      // {
+      //   protocol: "https",
+      //   hostname: "ваш-домен.ru",
+      // },
+      // Для разработки - можно использовать IP
+      {
         protocol: "http",
         hostname: "130.49.150.220",
       },

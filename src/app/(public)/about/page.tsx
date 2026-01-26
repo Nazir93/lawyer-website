@@ -52,11 +52,14 @@ export default async function AboutPage() {
         <div className="container mx-auto px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             {/* Image */}
-            <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-secondary order-2 lg:order-1">
+            <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-white dark:bg-transparent order-2 lg:order-1">
+              {/* Glow effect for dark mode */}
+              <div className="absolute inset-0 dark:bg-gradient-to-t dark:from-background dark:via-transparent dark:to-background/50 z-10 pointer-events-none" />
+              <div className="absolute inset-0 dark:bg-gradient-to-r dark:from-background/80 dark:via-transparent dark:to-background/80 z-10 pointer-events-none" />
               <img
                 src={lawyerPhoto}
                 alt={lawyerName}
-                className="w-full h-full object-cover object-top"
+                className="w-full h-full object-cover object-top dark:mix-blend-luminosity dark:opacity-95"
               />
             </div>
 

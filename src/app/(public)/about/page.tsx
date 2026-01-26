@@ -20,19 +20,18 @@ const specializations = [
 export default async function AboutPage() {
   const settings = await getSettings();
 
-  // Данные адвоката Азима Гасанова
-  const lawyerName = settings?.lawyerName || "Азим Гасанов";
-  const lawyerPhoto = settings?.lawyerPhotoUrl || "/images/azim-gasanov.png";
-  const lawyerPosition = settings?.lawyerPosition || "Адвокат";
-  const lawyerBio = settings?.lawyerBio || `Меня зовут Азим Гасанов. Я профессиональный адвокат с многолетним опытом защиты прав и интересов клиентов.
+  // Данные адвоката Азима Гасанова (приоритет над настройками БД)
+  const lawyerName = "Азим Гасанов";
+  const lawyerPhoto = "/images/azim-gasanov.png";
+  const lawyerPosition = "Адвокат";
+  const lawyerBio = `Меня зовут Азим Гасанов. Я профессиональный адвокат с многолетним опытом защиты прав и интересов клиентов.
 
 Моя практика охватывает широкий спектр юридических вопросов: от корпоративного права и арбитражных споров до семейных дел и защиты бизнеса.
 
 Я верю, что каждый клиент заслуживает качественной правовой защиты и индивидуального подхода. Моя цель — не просто выиграть дело, а найти оптимальное решение для каждой конкретной ситуации.`;
 
-  const nameParts = lawyerName.split(" ");
-  const firstName = nameParts[0] || "";
-  const lastName = nameParts.slice(1).join(" ") || "";
+  const firstName = "Азим";
+  const lastName = "Гасанов";
 
   const stats = [
     {

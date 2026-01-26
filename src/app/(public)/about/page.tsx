@@ -20,7 +20,16 @@ const specializations = [
 export default async function AboutPage() {
   const settings = await getSettings();
 
-  const lawyerName = settings?.lawyerName || "Иванов Иван Иванович";
+  // Данные адвоката Азима Гасанова
+  const lawyerName = settings?.lawyerName || "Азим Гасанов";
+  const lawyerPhoto = settings?.lawyerPhotoUrl || "/images/azim-gasanov.png";
+  const lawyerPosition = settings?.lawyerPosition || "Адвокат";
+  const lawyerBio = settings?.lawyerBio || `Меня зовут Азим Гасанов. Я профессиональный адвокат с многолетним опытом защиты прав и интересов клиентов.
+
+Моя практика охватывает широкий спектр юридических вопросов: от корпоративного права и арбитражных споров до семейных дел и защиты бизнеса.
+
+Я верю, что каждый клиент заслуживает качественной правовой защиты и индивидуального подхода. Моя цель — не просто выиграть дело, а найти оптимальное решение для каждой конкретной ситуации.`;
+
   const nameParts = lawyerName.split(" ");
   const firstName = nameParts[0] || "";
   const lastName = nameParts.slice(1).join(" ") || "";
@@ -30,11 +39,11 @@ export default async function AboutPage() {
       label: "Лет опыта",
       value: settings?.lawyerExperienceYears
         ? `${settings.lawyerExperienceYears}+`
-        : "15+",
+        : "10+",
     },
-    { label: "Выигранных дел", value: "500+" },
-    { label: "Довольных клиентов", value: "1000+" },
-    { label: "Успешных сделок", value: "200+" },
+    { label: "Выигранных дел", value: "300+" },
+    { label: "Довольных клиентов", value: "500+" },
+    { label: "Консультаций", value: "1000+" },
   ];
 
   return (
@@ -45,17 +54,11 @@ export default async function AboutPage() {
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             {/* Image */}
             <div className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-secondary order-2 lg:order-1">
-              {settings?.lawyerPhotoUrl ? (
-                <img
-                  src={settings.lawyerPhotoUrl}
-                  alt={lawyerName}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                  <span className="text-6xl">👨‍⚖️</span>
-                </div>
-              )}
+              <img
+                src={lawyerPhoto}
+                alt={lawyerName}
+                className="w-full h-full object-cover object-top"
+              />
             </div>
 
             {/* Content */}
@@ -73,11 +76,10 @@ export default async function AboutPage() {
                 )}
               </h1>
               <p className="text-xl text-muted-foreground mb-6">
-                {settings?.lawyerPosition || "Адвокат"}
+                {lawyerPosition}
               </p>
-              <p className="text-muted-foreground leading-relaxed mb-8">
-                {settings?.lawyerBio ||
-                  "Более 15 лет успешно защищаю права и интересы клиентов в судах всех инстанций. Специализируюсь на корпоративном праве, арбитражных спорах и защите бизнеса."}
+              <p className="text-muted-foreground leading-relaxed mb-8 whitespace-pre-line">
+                {lawyerBio}
               </p>
 
               <div className="flex flex-wrap gap-4">

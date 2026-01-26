@@ -45,6 +45,7 @@ const defaultExploreItems: SectionItem[] = [
 ];
 
 const navigation = [
+  { title: "Обо мне", href: "/about" },
   { title: "Кейсы", href: "/cases" },
   { title: "Новости", href: "/news", badge: "New" },
   { title: "Отзывы", href: "/reviews" },

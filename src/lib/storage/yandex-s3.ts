@@ -7,18 +7,18 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-// Yandex Object Storage конфигурация
+// S3-совместимое хранилище (Reg.ru Cloud / Yandex Cloud)
 const s3Client = new S3Client({
-  region: "ru-central1",
-  endpoint: process.env.YANDEX_S3_ENDPOINT || "https://storage.yandexcloud.net",
+  region: "ru-1", // Reg.ru region
+  endpoint: process.env.S3_ENDPOINT || "https://s3.regru.cloud",
   credentials: {
-    accessKeyId: process.env.YANDEX_S3_ACCESS_KEY || "",
-    secretAccessKey: process.env.YANDEX_S3_SECRET_KEY || "",
+    accessKeyId: process.env.S3_ACCESS_KEY || "",
+    secretAccessKey: process.env.S3_SECRET_KEY || "",
   },
-  forcePathStyle: true, // Важно для Yandex Object Storage
+  forcePathStyle: true, // Важно для S3-совместимых хранилищ
 });
 
-const BUCKET_NAME = process.env.YANDEX_S3_BUCKET || "lawyer-files";
+const BUCKET_NAME = process.env.S3_BUCKET || "gasanov-lawyer-files";
 
 // Типы файлов и их папки
 const FILE_FOLDERS: Record<string, string> = {
@@ -97,8 +97,9 @@ export async function uploadFile(
 
     await s3Client.send(command);
 
-    // Формируем URL файла
-    const url = `https://${BUCKET_NAME}.storage.yandexcloud.net/${key}`;
+    // Формируем URL файла (Reg.ru path-style)
+    const endpoint = process.env.S3_ENDPOINT || "https://s3.regru.cloud";
+    const url = `${endpoint}/${BUCKET_NAME}/${key}`;
 
     return {
       success: true,

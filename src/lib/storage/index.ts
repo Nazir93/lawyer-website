@@ -16,9 +16,9 @@ import {
 
 // Определяем, настроен ли S3
 const useS3 = !!(
-  process.env.YANDEX_S3_ACCESS_KEY &&
-  process.env.YANDEX_S3_SECRET_KEY &&
-  process.env.YANDEX_S3_BUCKET
+  process.env.S3_ACCESS_KEY &&
+  process.env.S3_SECRET_KEY &&
+  process.env.S3_BUCKET
 );
 
 /**

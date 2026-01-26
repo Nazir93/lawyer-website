@@ -97,14 +97,6 @@ export function Footer() {
                     </Link>
                   </li>
                 ))}
-                <li>
-                  <Link
-                    href="/prices"
-                    className="text-sm hover:text-muted-foreground transition-colors line-animate inline-block"
-                  >
-                    Цены
-                  </Link>
-                </li>
               </ul>
             </div>
 

@@ -8,7 +8,6 @@ import {
   FileText,
   Calendar,
   MessageSquare,
-  CreditCard,
   Settings,
   HelpCircle,
   Phone,
@@ -29,7 +28,6 @@ const navigation = [
     items: [
       { title: "Календарь", href: "/cabinet/calendar", icon: Calendar },
       { title: "Сообщения", href: "/cabinet/messages", icon: MessageSquare, badge: "2" },
-      { title: "Платежи", href: "/cabinet/payments", icon: CreditCard },
     ],
   },
   {

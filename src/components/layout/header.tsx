@@ -48,7 +48,6 @@ const navigation = [
   { title: "Кейсы", href: "/cases" },
   { title: "Новости", href: "/news", badge: "New" },
   { title: "Отзывы", href: "/reviews" },
-  { title: "Цены", href: "/prices" },
   { title: "Контакты", href: "/contacts" },
 ];
 

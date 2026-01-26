@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { LeadStatus, Prisma } from "@prisma/client";
 
+// URL n8n webhook для обработки заявок
+const N8N_LEAD_WEBHOOK = process.env.N8N_LEAD_WEBHOOK_URL;
+
 // Функция отправки в Telegram
 async function sendTelegramNotification(lead: {
   name: string;
@@ -49,6 +52,43 @@ ${lead.message ? `\n💬 <b>Сообщение:</b>\n${lead.message}` : ""}
     }
   } catch (error) {
     console.error("Error sending Telegram notification:", error);
+  }
+}
+
+// Отправка заявки в n8n для дополнительной обработки
+async function sendToN8n(lead: any) {
+  if (!N8N_LEAD_WEBHOOK) {
+    console.log("n8n webhook not configured, skipping");
+    return;
+  }
+
+  try {
+    const response = await fetch(N8N_LEAD_WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "new_lead",
+        timestamp: new Date().toISOString(),
+        lead: {
+          id: lead.id,
+          name: lead.name,
+          phone: lead.phone,
+          email: lead.email,
+          service: lead.service,
+          message: lead.message,
+          source: lead.source,
+          created_at: lead.createdAt,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("n8n webhook error:", await response.text());
+    } else {
+      console.log("Lead sent to n8n successfully");
+    }
+  } catch (error) {
+    console.error("Error sending to n8n:", error);
   }
 }
 
@@ -120,6 +160,9 @@ export async function POST(request: NextRequest) {
 
     // Отправляем уведомление в Telegram
     await sendTelegramNotification(data, settings);
+
+    // Отправляем в n8n webhook для дополнительной обработки
+    await sendToN8n(data);
 
     return NextResponse.json({ success: true, id: data.id });
   } catch (error) {

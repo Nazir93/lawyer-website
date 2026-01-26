@@ -5,8 +5,9 @@ import { useRef, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { ArrowUpRight, Shield, Clock, MessageSquare, FileText, Bell, CreditCard } from "lucide-react";
+import { ArrowUpRight, Shield, Clock, MessageSquare, FileText, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 
 const features = [
   {
@@ -34,11 +35,6 @@ const features = [
     title: "Уведомления",
     description: "Мгновенные уведомления о важных событиях",
   },
-  {
-    icon: CreditCard,
-    title: "Оплата",
-    description: "Удобная оплата услуг онлайн",
-  },
 ];
 
 export function DashboardPreview() {
@@ -46,10 +42,16 @@ export function DashboardPreview() {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { isLoggedIn, isLoading } = useAuth();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Не показываем блок авторизованным пользователям
+  if (isLoggedIn && !isLoading) {
+    return null;
+  }
 
   return (
     <section ref={ref} className="py-24 lg:py-32 overflow-hidden">

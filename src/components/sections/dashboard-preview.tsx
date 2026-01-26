@@ -95,7 +95,7 @@ export function DashboardPreview() {
               </div>
               <div className="flex-1 mx-4">
                 <div className="max-w-md mx-auto px-4 py-1.5 rounded-lg bg-background/50 text-xs text-muted-foreground text-center">
-                  lawyer.ru/dashboard
+                  azim-gasanov.ru/dashboard
                 </div>
               </div>
             </div>

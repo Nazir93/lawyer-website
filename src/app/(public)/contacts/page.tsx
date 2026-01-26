@@ -24,8 +24,8 @@ export default async function ContactsPage() {
     {
       icon: Mail,
       title: "Email",
-      value: settings?.email || "info@lawyer.ru",
-      href: settings?.email ? `mailto:${settings.email}` : "mailto:info@lawyer.ru",
+      value: settings?.email || "info@azim-gasanov.ru",
+      href: settings?.email ? `mailto:${settings.email}` : "mailto:info@azim-gasanov.ru",
       description: "Ответим в течение часа",
     },
     {

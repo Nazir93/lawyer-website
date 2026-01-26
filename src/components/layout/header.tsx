@@ -512,7 +512,7 @@ export function Header() {
 
               <div className="mt-8 pt-6 border-t border-border text-sm text-muted-foreground">
                 <p>+7 (900) 123-45-67</p>
-                <p>info@lawyer.ru</p>
+                <p>info@azim-gasanov.ru</p>
               </div>
             </motion.nav>
           </motion.div>

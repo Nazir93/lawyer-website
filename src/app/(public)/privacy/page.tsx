@@ -163,7 +163,7 @@ export default function PrivacyPage() {
             можете обратиться:
           </p>
           <ul>
-            <li>Email: info@lawyer.ru</li>
+            <li>Email: info@azim-gasanov.ru</li>
             <li>Телефон: +7 (900) 123-45-67</li>
             <li>Адрес: г. Москва, ул. Примерная, д. 1, офис 100</li>
           </ul>

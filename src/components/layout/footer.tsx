@@ -72,10 +72,10 @@ export function Footer() {
                 +7 (900) 123-45-67
               </a>
               <a
-                href="mailto:info@lawyer.ru"
+                href="mailto:info@azim-gasanov.ru"
                 className="block text-muted-foreground hover:text-foreground transition-colors"
               >
-                info@lawyer.ru
+                info@azim-gasanov.ru
               </a>
             </div>
           </div>

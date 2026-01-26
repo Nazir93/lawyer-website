@@ -102,7 +102,7 @@ export function Header() {
               {/* Logo */}
               <Link href="/" className="flex items-center gap-1">
                 <span className="text-2xl font-bold tracking-tight">G.</span>
-                <span className="text-2xl font-light tracking-tight">A</span>
+                <span className="text-2xl font-bold tracking-tight">A</span>
               </Link>
 
               {/* Desktop Navigation */}

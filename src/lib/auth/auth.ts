@@ -35,18 +35,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma) as any,
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 дней
   },
   pages: {
     signIn: "/login",
     error: "/login",
   },
   providers: [
-    // Вход по Яндекс ID (опционально, раскомментируйте если нужно)
-    // YandexProvider({
-    //   clientId: process.env.YANDEX_CLIENT_ID!,
-    //   clientSecret: process.env.YANDEX_CLIENT_SECRET!,
-    // }),
-    
     // Вход по email/паролю
     Credentials({
       id: "credentials",
@@ -60,62 +55,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new Error("Email и пароль обязательны");
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
-        });
-
-        if (!user || !user.password) {
-          throw new Error("Неверный email или пароль");
-        }
-
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password as string,
-          user.password
-        );
-
-        if (!isPasswordValid) {
-          throw new Error("Неверный email или пароль");
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          role: user.role,
-          phone: user.phone,
-        };
-      },
-    }),
-    
-    // Вход по телефону
-    Credentials({
-      id: "phone",
-      name: "Phone",
-      credentials: {
-        phone: { label: "Телефон", type: "tel" },
-        password: { label: "Пароль", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.phone || !credentials?.password) {
-          throw new Error("Телефон и пароль обязательны");
-        }
-
-        // Нормализуем номер телефона
-        const normalizedPhone = (credentials.phone as string).replace(/\D/g, "");
+        const email = (credentials.email as string).trim().toLowerCase();
         
-        const user = await prisma.user.findFirst({
-          where: {
-            OR: [
-              { phone: normalizedPhone },
-              { phone: `+${normalizedPhone}` },
-              { phone: `+7${normalizedPhone.slice(-10)}` },
-            ],
-          },
+        // Валидация email формата
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          throw new Error("Некорректный формат email");
+        }
+
+        const user = await prisma.user.findUnique({
+          where: { email },
         });
 
         if (!user || !user.password) {
-          throw new Error("Неверный телефон или пароль");
+          // Используем общее сообщение для безопасности
+          throw new Error("Неверный email или пароль");
         }
 
         const isPasswordValid = await bcrypt.compare(
@@ -124,7 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         );
 
         if (!isPasswordValid) {
-          throw new Error("Неверный телефон или пароль");
+          throw new Error("Неверный email или пароль");
         }
 
         return {
@@ -181,7 +135,7 @@ export async function requireAdmin() {
   return user;
 }
 
-// Хелпер для хеширования пароля
+// Хелпер для хеширования пароля (усиленное хеширование)
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 12);
 }
@@ -189,4 +143,27 @@ export async function hashPassword(password: string): Promise<string> {
 // Хелпер для проверки пароля
 export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
   return bcrypt.compare(password, hashedPassword);
+}
+
+// Валидация силы пароля
+export function validatePasswordStrength(password: string): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  
+  if (password.length < 8) {
+    errors.push("Пароль должен содержать минимум 8 символов");
+  }
+  if (!/[A-ZА-Я]/.test(password)) {
+    errors.push("Пароль должен содержать заглавную букву");
+  }
+  if (!/\d/.test(password)) {
+    errors.push("Пароль должен содержать цифру");
+  }
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    errors.push("Пароль должен содержать спецсимвол (!@#$%^&*)");
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
 }

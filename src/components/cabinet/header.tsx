@@ -24,7 +24,7 @@ export function CabinetHeader() {
         <Link href="/" className="flex items-center gap-2">
           <div className="flex items-center gap-1">
             <span className="text-2xl font-bold tracking-tighter">G.</span>
-            <span className="text-2xl font-light tracking-tighter">A</span>
+            <span className="text-2xl font-bold tracking-tighter">A</span>
           </div>
           <span className="hidden sm:inline text-sm text-muted-foreground">
             Личный кабинет

@@ -7,6 +7,21 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "50mb",
     },
   },
+  // Редиректы для обратной совместимости
+  async redirects() {
+    return [
+      {
+        source: "/admin",
+        destination: "/gasanov",
+        permanent: true,
+      },
+      {
+        source: "/admin/:path*",
+        destination: "/gasanov/:path*",
+        permanent: true,
+      },
+    ];
+  },
   // Разрешить изображения из uploads
   images: {
     remotePatterns: [

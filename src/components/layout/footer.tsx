@@ -55,7 +55,7 @@ export function Footer() {
             <Link href="/" className="inline-block mb-6">
               <div className="flex items-center gap-1">
                 <span className="text-3xl font-bold tracking-tight">G.</span>
-                <span className="text-3xl font-light tracking-tight">A</span>
+                <span className="text-3xl font-bold tracking-tight">A</span>
               </div>
             </Link>
             <p className="text-muted-foreground leading-relaxed max-w-sm">

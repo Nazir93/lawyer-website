@@ -94,7 +94,7 @@ export default function AdminCalendarPage() {
       const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
 
       const res = await fetch(
-        `/api/gasanov/timeslots?start=${startOfMonth.toISOString()}&end=${endOfMonth.toISOString()}`
+        `/api/admin/timeslots?start=${startOfMonth.toISOString()}&end=${endOfMonth.toISOString()}`
       );
       const data = await res.json();
       if (res.ok) {
@@ -111,7 +111,7 @@ export default function AdminCalendarPage() {
       const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0, 23, 59, 59);
 
       const res = await fetch(
-        `/api/gasanov/appointments?start=${startOfMonth.toISOString()}&end=${endOfMonth.toISOString()}`
+        `/api/admin/appointments?start=${startOfMonth.toISOString()}&end=${endOfMonth.toISOString()}`
       );
       const data = await res.json();
       if (res.ok) {
@@ -163,7 +163,7 @@ export default function AdminCalendarPage() {
 
     setIsGenerating(true);
     try {
-      const res = await fetch("/api/gasanov/timeslots", {
+      const res = await fetch("/api/admin/timeslots", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -190,7 +190,7 @@ export default function AdminCalendarPage() {
 
   const handleDeleteSlot = async (slotId: string) => {
     try {
-      const res = await fetch(`/api/gasanov/timeslots?id=${slotId}`, {
+      const res = await fetch(`/api/admin/timeslots?id=${slotId}`, {
         method: "DELETE",
       });
 
@@ -211,7 +211,7 @@ export default function AdminCalendarPage() {
 
     try {
       const dateStr = selectedDate.toISOString().split("T")[0];
-      const res = await fetch(`/api/gasanov/timeslots?date=${dateStr}`, {
+      const res = await fetch(`/api/admin/timeslots?date=${dateStr}`, {
         method: "DELETE",
       });
 

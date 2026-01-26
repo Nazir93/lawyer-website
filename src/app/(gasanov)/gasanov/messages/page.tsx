@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatDateShort, formatTime } from "@/lib/utils/date";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-// Для сообщений из API /api/gasanov/messages (camelCase от Prisma)
+// Для сообщений из API /api/admin/messages (camelCase от Prisma)
 interface Message {
   id: string;
   conversationId: string;
@@ -90,7 +90,7 @@ export default function AdminMessagesPage() {
   const loadConversations = async (showLoading = false) => {
     try {
       if (showLoading) setIsLoading(true);
-      const res = await fetch("/api/gasanov/conversations");
+      const res = await fetch("/api/admin/conversations");
       const data = await res.json();
       if (res.ok) {
         setConversations(data.data || []);
@@ -104,7 +104,7 @@ export default function AdminMessagesPage() {
 
   const loadMessages = async (conversationId: string) => {
     try {
-      const res = await fetch(`/api/gasanov/messages?conversation_id=${conversationId}`);
+      const res = await fetch(`/api/admin/messages?conversation_id=${conversationId}`);
       const data = await res.json();
       if (res.ok) {
         setMessages(data.data || []);
@@ -122,7 +122,7 @@ export default function AdminMessagesPage() {
     
     setIsSending(true);
     try {
-      const res = await fetch("/api/gasanov/messages", {
+      const res = await fetch("/api/admin/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

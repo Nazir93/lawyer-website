@@ -117,11 +117,12 @@ function SidebarContent({ onLinkClick }: { onLinkClick?: () => void }) {
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-border px-6">
-        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-          <Scale className="w-4 h-4 text-primary-foreground" />
+        <div className="flex items-center gap-1">
+          <span className="text-2xl font-bold tracking-tight">G.</span>
+          <span className="text-2xl font-light tracking-tight">A</span>
         </div>
         <div>
-          <h1 className="font-semibold text-foreground">Админ панель</h1>
+          <h1 className="font-semibold text-foreground text-sm">Админ панель</h1>
         </div>
       </div>
 

@@ -100,8 +100,9 @@ export function Header() {
             {/* Left: Logo + Nav */}
             <div className="flex items-center gap-8">
               {/* Logo */}
-              <Link href="/" className="flex items-center">
-                <span className="text-2xl font-bold tracking-tight">А.</span>
+              <Link href="/" className="flex items-center gap-1">
+                <span className="text-2xl font-bold tracking-tight">G.</span>
+                <span className="text-2xl font-light tracking-tight">A</span>
               </Link>
 
               {/* Desktop Navigation */}

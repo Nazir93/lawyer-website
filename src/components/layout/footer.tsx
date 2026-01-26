@@ -53,10 +53,10 @@ export function Footer() {
           {/* Brand */}
           <div className="lg:col-span-4">
             <Link href="/" className="inline-block mb-6">
-              <span className="text-2xl font-medium tracking-tight">
-                <span className="font-serif italic">Адвокат</span>
-                <span className="text-muted-foreground ml-1">®</span>
-              </span>
+              <div className="flex items-center gap-1">
+                <span className="text-3xl font-bold tracking-tight">G.</span>
+                <span className="text-3xl font-light tracking-tight">A</span>
+              </div>
             </Link>
             <p className="text-muted-foreground leading-relaxed max-w-sm">
               Профессиональная юридическая помощь физическим и юридическим

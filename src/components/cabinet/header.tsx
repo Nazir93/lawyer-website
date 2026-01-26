@@ -22,7 +22,10 @@ export function CabinetHeader() {
       <div className="h-full px-4 lg:px-6 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <span className="text-2xl font-bold tracking-tighter">А.</span>
+          <div className="flex items-center gap-1">
+            <span className="text-2xl font-bold tracking-tighter">G.</span>
+            <span className="text-2xl font-light tracking-tighter">A</span>
+          </div>
           <span className="hidden sm:inline text-sm text-muted-foreground">
             Личный кабинет
           </span>

@@ -55,6 +55,11 @@ const navigation = [
         href: "/gasanov/users",
         icon: Users,
       },
+      {
+        title: "Юристы",
+        href: "/gasanov/lawyers",
+        icon: Scale,
+      },
     ],
   },
   {

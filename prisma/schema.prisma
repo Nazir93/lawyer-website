@@ -26,20 +26,32 @@ model User {
   image         String?
   password      String?   // Для входа по паролю
   role          UserRole  @default(CLIENT)
-  
+
+  // Реферальная система
+  referralCode  String?   @unique
+  referredById  String?
+  referredBy    User?     @relation("UserReferrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals     User[]    @relation("UserReferrals")
+
   // NextAuth поля
   accounts      Account[]
   sessions      Session[]
-  
+
   // Связи с другими таблицами
   documents     ClientDocument[]
   sentMessages  Message[]      @relation("SentMessages")
   receivedMessages Message[]   @relation("ReceivedMessages")
   userCases     UserCase[]
   appointments  Appointment[]
-  
+  lawyerProfile LawyerProfile?
+  clientContracts Contract[]   @relation("ClientContracts")
+  commissions   Commission[]   @relation("CommissionBeneficiary")
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  @@index([referredById])
+  @@index([referralCode])
 }
 
 model Account {
@@ -264,14 +276,21 @@ model Case {
   isActive        Boolean    @default(true)
   isPublic        Boolean    @default(false)   // Показывать в публичном портфолио
   
+  // Владелец дела на платформе (юрист)
+  lawyerId        String?
+  lawyer          LawyerProfile? @relation(fields: [lawyerId], references: [id], onDelete: SetNull)
+
   // Связи
   documents       ClientDocument[]
   messages        Message[]
   userCases       UserCase[]
   appointments    Appointment[]
-  
+  contracts       Contract[]
+
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
+
+  @@index([lawyerId])
 }
 
 enum CaseStatus {
@@ -333,9 +352,17 @@ model Lead {
   // GDPR
   consentGiven Boolean    @default(false)
   consentDate  DateTime?
-  
+
+  // К какому юристу на платформе
+  lawyerId     String?
+  lawyer       LawyerProfile? @relation(fields: [lawyerId], references: [id], onDelete: SetNull)
+  referredById String?
+
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+
+  @@index([lawyerId])
+  @@index([referredById])
 }
 
 enum LeadStatus {
@@ -658,4 +685,175 @@ model TimeSlot {
   @@index([date])
   @@index([isBooked])
   @@index([isAvailable])
+}
+
+// =====================================================
+// ПЛАТФОРМА: ПРОФИЛЬ ЮРИСТА, ДОГОВОРЫ, РЕФЕРАЛЫ
+// =====================================================
+
+model LawyerProfile {
+  id              String              @id @default(cuid())
+  userId          String              @unique
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  displayName     String
+  slug            String              @unique
+  bio             String?             @db.Text
+  specialization  String?
+  barNumber       String?             // Номер в реестре / удостоверение
+  city            String?
+  phone           String?
+  photoUrl        String?
+
+  status          LawyerStatus        @default(PENDING)
+  verifiedAt      DateTime?
+
+  cases           Case[]
+  leads           Lead[]
+  contracts       Contract[]
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([status])
+  @@index([slug])
+}
+
+enum LawyerStatus {
+  PENDING     // Заявка на модерации
+  ACTIVE      // Может принимать клиентов
+  SUSPENDED   // Временно отключён
+  REJECTED    // Отклонён
+}
+
+model PlatformSettings {
+  id                    String   @id @default(cuid())
+
+  // Доля платформы с оплаты договора (%)
+  platformFeePercent    Float    @default(10)
+
+  // Партнёрская программа (affiliate, не MLM-вклады)
+  referralLevel1Percent Float    @default(5)
+  referralLevel2Percent Float    @default(2)
+  maxReferralDepth      Int      @default(2)
+
+  // Минимальная сумма договора для начисления комиссии (копейки)
+  minContractAmount     Int      @default(0)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Contract {
+  id              String           @id @default(cuid())
+  title           String
+  description     String?
+
+  // Сумма в копейках (RUB)
+  amount          Int
+  currency        String           @default("RUB")
+
+  status          ContractStatus   @default(DRAFT)
+
+  clientId        String
+  client          User             @relation("ClientContracts", fields: [clientId], references: [id], onDelete: Cascade)
+
+  lawyerId        String
+  lawyer          LawyerProfile    @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  caseId          String?
+  case            Case?            @relation(fields: [caseId], references: [id], onDelete: SetNull)
+
+  // Кто привёл клиента (снимок на момент договора)
+  referredById    String?
+
+  paidAt          DateTime?
+  signedAt        DateTime?
+
+  payments        Payment[]
+  commissions     Commission[]
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([clientId])
+  @@index([lawyerId])
+  @@index([caseId])
+  @@index([status])
+  @@index([referredById])
+}
+
+enum ContractStatus {
+  DRAFT
+  SENT
+  SIGNED
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  contractId      String
+  contract        Contract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  amount          Int           // копейки
+  currency        String        @default("RUB")
+  status          PaymentStatus @default(PENDING)
+  provider        String?       // yookassa / manual / ...
+  externalId      String?
+  paidAt          DateTime?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([contractId])
+  @@index([status])
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+model Commission {
+  id              String            @id @default(cuid())
+  contractId      String
+  contract        Contract          @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  beneficiaryId   String
+  beneficiary     User              @relation("CommissionBeneficiary", fields: [beneficiaryId], references: [id], onDelete: Cascade)
+
+  // PLATFORM | REFERRAL_L1 | REFERRAL_L2
+  type            CommissionType
+  level           Int               @default(0)
+  percent         Float
+  amount          Int               // копейки
+  status          CommissionStatus  @default(PENDING)
+
+  paidAt          DateTime?
+  note            String?
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([contractId])
+  @@index([beneficiaryId])
+  @@index([type])
+  @@index([status])
+}
+
+enum CommissionType {
+  PLATFORM
+  REFERRAL_L1
+  REFERRAL_L2
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  CANCELLED
 }

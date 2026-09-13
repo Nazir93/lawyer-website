@@ -126,10 +126,28 @@ export async function requireAuth() {
   return user;
 }
 
-// Хелпер для проверки роли админа
+// Хелпер для проверки роли админа / staff CMS
 export async function requireAdmin() {
   const user = await requireAuth();
   if (user.role !== "ADMIN" && user.role !== "LAWYER") {
+    throw new Error("Forbidden");
+  }
+  return user;
+}
+
+// Только админ платформы (CMS сайта)
+export async function requirePlatformAdmin() {
+  const user = await requireAuth();
+  if (user.role !== "ADMIN") {
+    throw new Error("Forbidden");
+  }
+  return user;
+}
+
+// Кабинет юриста
+export async function requireLawyer() {
+  const user = await requireAuth();
+  if (user.role !== "LAWYER" && user.role !== "ADMIN") {
     throw new Error("Forbidden");
   }
   return user;

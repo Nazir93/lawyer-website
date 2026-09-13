@@ -1,11 +1,40 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { toPublicLawyer } from "@/lib/platform/fees";
+import { buildLawyerProfileSeo } from "@/lib/platform/seo";
 import { ArrowLeft, MapPin, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
+
+async function loadLawyer(slug: string) {
+  const profile = await prisma.lawyerProfile.findUnique({ where: { slug } });
+  return profile ? toPublicLawyer(profile) : null;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const lawyer = await loadLawyer(slug);
+  if (!lawyer) return { title: "Юрист не найден" };
+  const seo = buildLawyerProfileSeo(lawyer);
+  return {
+    title: seo.title,
+    description: seo.description,
+    alternates: { canonical: seo.canonicalPath },
+    openGraph: {
+      title: seo.title,
+      description: seo.description,
+      url: seo.canonicalPath,
+      type: "profile",
+    },
+  };
+}
 
 export default async function LawyerPublicPage({
   params,
@@ -13,8 +42,7 @@ export default async function LawyerPublicPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const profile = await prisma.lawyerProfile.findUnique({ where: { slug } });
-  const lawyer = profile ? toPublicLawyer(profile) : null;
+  const lawyer = await loadLawyer(slug);
   if (!lawyer) notFound();
 
   return (

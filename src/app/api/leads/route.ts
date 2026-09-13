@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { LeadStatus, Prisma } from "@prisma/client";
+import {
+  buildLeadCreateData,
+  normalizeLawyerQueryParam,
+} from "@/lib/platform/leads";
 
-// URL n8n webhook для обработки заявок
 const N8N_LEAD_WEBHOOK = process.env.N8N_LEAD_WEBHOOK_URL;
 
-// Функция отправки в Telegram
-async function sendTelegramNotification(lead: {
-  name: string;
-  phone: string;
-  email?: string | null;
-  service?: string | null;
-  message?: string | null;
-}, settings: { telegramBotToken?: string | null; telegramChatId?: string | null } | null) {
+async function sendTelegramNotification(
+  lead: {
+    name: string;
+    phone: string;
+    email?: string | null;
+    service?: string | null;
+    message?: string | null;
+    lawyerId?: string | null;
+  },
+  settings: { telegramBotToken?: string | null; telegramChatId?: string | null } | null,
+  lawyerName?: string | null
+) {
   const botToken = settings?.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN;
   const chatId = settings?.telegramChatId || process.env.TELEGRAM_CHAT_ID;
 
@@ -28,6 +35,7 @@ async function sendTelegramNotification(lead: {
 📞 <b>Телефон:</b> ${lead.phone}
 ${lead.email ? `📧 <b>Email:</b> ${lead.email}` : ""}
 ${lead.service ? `📋 <b>Услуга:</b> ${lead.service}` : ""}
+${lawyerName ? `⚖️ <b>Юрист:</b> ${lawyerName}` : ""}
 ${lead.message ? `\n💬 <b>Сообщение:</b>\n${lead.message}` : ""}
 
 📅 ${new Date().toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })}
@@ -55,8 +63,17 @@ ${lead.message ? `\n💬 <b>Сообщение:</b>\n${lead.message}` : ""}
   }
 }
 
-// Отправка заявки в n8n для дополнительной обработки
-async function sendToN8n(lead: any) {
+async function sendToN8n(lead: {
+  id: string;
+  name: string;
+  phone: string;
+  email: string | null;
+  service: string | null;
+  message: string | null;
+  source: string;
+  createdAt: Date;
+  lawyerId: string | null;
+}) {
   if (!N8N_LEAD_WEBHOOK) {
     console.log("n8n webhook not configured, skipping");
     return;
@@ -77,6 +94,7 @@ async function sendToN8n(lead: any) {
           service: lead.service,
           message: lead.message,
           source: lead.source,
+          lawyer_id: lead.lawyerId,
           created_at: lead.createdAt,
         },
       }),
@@ -92,26 +110,31 @@ async function sendToN8n(lead: any) {
   }
 }
 
-// GET - Получить все заявки (для админки)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    
     const status = searchParams.get("status");
     const limit = searchParams.get("limit");
-    
+    const lawyerId = searchParams.get("lawyerId");
+
     const where: Prisma.LeadWhereInput = {};
-    
+
     if (status && status !== "all") {
       where.status = status.toUpperCase() as LeadStatus;
     }
-    
+    if (lawyerId) {
+      where.lawyerId = lawyerId;
+    }
+
     const data = await prisma.lead.findMany({
       where,
       orderBy: { createdAt: "desc" },
       take: limit ? parseInt(limit) : undefined,
+      include: {
+        lawyer: { select: { id: true, displayName: true, slug: true } },
+      },
     });
-    
+
     return NextResponse.json({ data, count: data.length });
   } catch (error) {
     console.error("Error fetching leads:", error);
@@ -119,12 +142,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Создать заявку (публичный)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // Валидация
     if (!body.name || !body.phone) {
       return NextResponse.json(
         { error: "Имя и телефон обязательны" },
@@ -132,25 +153,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Создаём заявку
-    const data = await prisma.lead.create({
-      data: {
-        name: body.name,
-        phone: body.phone,
-        email: body.email,
-        service: body.service,
-        message: body.message,
-        status: "NEW",
-        source: body.source || "website",
-        utmSource: body.utm_source,
-        utmMedium: body.utm_medium,
-        utmCampaign: body.utm_campaign,
-        consentGiven: body.consent || false,
-        consentDate: new Date(),
-      },
+    let lawyerId: string | null = null;
+    let lawyerName: string | null = null;
+    const slug = normalizeLawyerQueryParam(body.lawyerSlug || body.lawyer);
+
+    if (slug) {
+      const lawyer = await prisma.lawyerProfile.findFirst({
+        where: { slug, status: "ACTIVE" },
+        select: { id: true, displayName: true },
+      });
+      if (lawyer) {
+        lawyerId = lawyer.id;
+        lawyerName = lawyer.displayName;
+      }
+    } else if (typeof body.lawyerId === "string" && body.lawyerId) {
+      const lawyer = await prisma.lawyerProfile.findFirst({
+        where: { id: body.lawyerId, status: "ACTIVE" },
+        select: { id: true, displayName: true },
+      });
+      if (lawyer) {
+        lawyerId = lawyer.id;
+        lawyerName = lawyer.displayName;
+      }
+    }
+
+    const createData = buildLeadCreateData({
+      name: body.name,
+      phone: body.phone,
+      email: body.email,
+      service: body.service,
+      message: body.message,
+      consent: body.consent,
+      lawyerId,
+      source: body.source,
+      utmSource: body.utm_source,
+      utmMedium: body.utm_medium,
+      utmCampaign: body.utm_campaign,
     });
 
-    // Получаем настройки для Telegram
+    const data = await prisma.lead.create({ data: createData });
+
     const settings = await prisma.siteSettings.findFirst({
       select: {
         telegramBotToken: true,
@@ -158,13 +200,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Отправляем уведомление в Telegram
-    await sendTelegramNotification(data, settings);
-
-    // Отправляем в n8n webhook для дополнительной обработки
+    await sendTelegramNotification(data, settings, lawyerName);
     await sendToN8n(data);
 
-    return NextResponse.json({ success: true, id: data.id });
+    return NextResponse.json({
+      success: true,
+      id: data.id,
+      lawyerId: data.lawyerId,
+    });
   } catch (error) {
     console.error("Error creating lead:", error);
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });

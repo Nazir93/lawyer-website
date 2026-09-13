@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requirePlatformAdmin } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db";
+import {
+  buildModerationNotification,
+  deliverModerationNotification,
+  type LawyerStatus,
+} from "@/lib/platform/moderation";
 
 /** Список юристов (модерация) */
 export async function GET() {
@@ -35,7 +40,7 @@ export async function GET() {
   }
 }
 
-/** Смена статуса: PENDING | ACTIVE | SUSPENDED | REJECTED */
+/** Смена статуса + уведомление юристу */
 export async function PATCH(request: NextRequest) {
   try {
     await requirePlatformAdmin();
@@ -49,6 +54,15 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Некорректные данные" }, { status: 400 });
     }
 
+    const existing = await prisma.lawyerProfile.findUnique({
+      where: { id },
+      include: { user: { select: { email: true, name: true } } },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Профиль не найден" }, { status: 404 });
+    }
+
     const profile = await prisma.lawyerProfile.update({
       where: { id },
       data: {
@@ -57,7 +71,17 @@ export async function PATCH(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ profile });
+    const notification = buildModerationNotification({
+      lawyerId: profile.id,
+      displayName: profile.displayName || existing.user.name || "Юрист",
+      email: existing.user.email,
+      previousStatus: existing.status as LawyerStatus,
+      nextStatus: status as LawyerStatus,
+    });
+
+    const delivery = await deliverModerationNotification(notification);
+
+    return NextResponse.json({ profile, notification, delivery });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error";
     if (message === "Unauthorized") {

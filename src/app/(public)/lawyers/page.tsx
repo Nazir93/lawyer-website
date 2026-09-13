@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { toPublicLawyer } from "@/lib/platform/fees";
+import { buildLawyersIndexSeo } from "@/lib/platform/seo";
 import { Scale, MapPin, ArrowUpRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -17,9 +19,7 @@ async function getActiveLawyers(q?: string, city?: string) {
             ],
           }
         : {}),
-      ...(city
-        ? { city: { contains: city, mode: "insensitive" } }
-        : {}),
+      ...(city ? { city: { contains: city, mode: "insensitive" } } : {}),
     },
     orderBy: [{ verifiedAt: "desc" }, { createdAt: "desc" }],
     take: 100,
@@ -28,6 +28,21 @@ async function getActiveLawyers(q?: string, city?: string) {
   return profiles
     .map((p) => toPublicLawyer(p))
     .filter((p): p is NonNullable<typeof p> => p !== null);
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; city?: string }>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const lawyers = await getActiveLawyers(params.q, params.city);
+  const seo = buildLawyersIndexSeo(lawyers.length);
+  return {
+    title: seo.title,
+    description: seo.description,
+    alternates: { canonical: seo.canonicalPath },
+  };
 }
 
 export default async function LawyersPage({

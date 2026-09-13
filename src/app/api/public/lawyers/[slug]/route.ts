@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { toPublicLawyer } from "@/lib/platform/fees";
+import { normalizeLawyerQueryParam } from "@/lib/platform/leads";
 
 /** Публичный профиль юриста по slug */
 export async function GET(
@@ -8,7 +9,8 @@ export async function GET(
   context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = await context.params;
+    const { slug: raw } = await context.params;
+    const slug = normalizeLawyerQueryParam(raw);
     if (!slug) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }

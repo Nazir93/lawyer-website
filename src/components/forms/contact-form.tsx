@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,6 +28,7 @@ import {
 } from "@/components/ui/form";
 import Link from "next/link";
 import { toast } from "sonner";
+import { normalizeLawyerQueryParam } from "@/lib/platform/leads";
 
 interface ServiceOption {
   id: string;
@@ -47,6 +49,9 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export function ContactForm() {
+  const searchParams = useSearchParams();
+  const lawyerSlug = normalizeLawyerQueryParam(searchParams.get("lawyer"));
+  const [lawyerLabel, setLawyerLabel] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [services, setServices] = useState<ServiceOption[]>([]);
@@ -118,6 +123,19 @@ export function ContactForm() {
     loadServices();
   }, []);
 
+  useEffect(() => {
+    if (!lawyerSlug) {
+      setLawyerLabel(null);
+      return;
+    }
+    fetch(`/api/public/lawyers/${lawyerSlug}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.lawyer?.displayName) setLawyerLabel(data.lawyer.displayName);
+      })
+      .catch(() => setLawyerLabel(null));
+  }, [lawyerSlug]);
+
   async function onSubmit(data: FormData) {
     setIsSubmitting(true);
 
@@ -132,6 +150,7 @@ export function ContactForm() {
         body: JSON.stringify({
           ...data,
           service: data.service ? serviceName : null,
+          lawyerSlug: lawyerSlug || undefined,
         }),
       });
 
@@ -167,6 +186,7 @@ export function ContactForm() {
         </h3>
         <p className="text-muted-foreground">
           Мы свяжемся с вами в течение часа
+          {lawyerLabel ? ` (юрист: ${lawyerLabel})` : ""}
         </p>
       </motion.div>
     );
@@ -175,6 +195,12 @@ export function ContactForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {lawyerLabel && (
+          <div className="rounded-xl border border-border bg-secondary/40 px-4 py-3 text-sm">
+            Заявка будет направлена юристу:{" "}
+            <span className="font-medium">{lawyerLabel}</span>
+          </div>
+        )}
         <div className="grid sm:grid-cols-2 gap-4">
           <FormField
             control={form.control}

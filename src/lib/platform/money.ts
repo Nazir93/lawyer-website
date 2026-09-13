@@ -11,3 +11,7 @@ export function formatRubFromKopecks(kopecks: number): string {
 export function rubToKopecks(rub: number): number {
   return Math.round(rub * 100);
 }
+
+// Aliases
+export const formatMoneyFromKopecks = formatRubFromKopecks;
+export const toKopecks = rubToKopecks;

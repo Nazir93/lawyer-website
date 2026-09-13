@@ -1,22 +1,14 @@
 import { prisma } from "@/lib/db";
 import { getReferrerChain } from "@/lib/platform/referral";
-import type { CommissionType, Prisma } from "@prisma/client";
+import {
+  buildCommissionPlan,
+  DEFAULT_PLATFORM_FEES,
+  type PlatformFeeConfig,
+} from "@/lib/platform/fees";
+import type { Prisma } from "@prisma/client";
 
-export type PlatformFeeConfig = {
-  platformFeePercent: number;
-  referralLevel1Percent: number;
-  referralLevel2Percent: number;
-  maxReferralDepth: number;
-  minContractAmount: number;
-};
-
-const DEFAULTS: PlatformFeeConfig = {
-  platformFeePercent: 10,
-  referralLevel1Percent: 5,
-  referralLevel2Percent: 2,
-  maxReferralDepth: 2,
-  minContractAmount: 0,
-};
+export type { PlatformFeeConfig };
+export { DEFAULT_PLATFORM_FEES };
 
 export async function getPlatformSettings(): Promise<PlatformFeeConfig> {
   const existing = await prisma.platformSettings.findFirst({
@@ -33,7 +25,9 @@ export async function getPlatformSettings(): Promise<PlatformFeeConfig> {
     };
   }
 
-  const created = await prisma.platformSettings.create({ data: DEFAULTS });
+  const created = await prisma.platformSettings.create({
+    data: DEFAULT_PLATFORM_FEES,
+  });
   return {
     platformFeePercent: created.platformFeePercent,
     referralLevel1Percent: created.referralLevel1Percent,
@@ -41,10 +35,6 @@ export async function getPlatformSettings(): Promise<PlatformFeeConfig> {
     maxReferralDepth: created.maxReferralDepth,
     minContractAmount: created.minContractAmount,
   };
-}
-
-function percentOf(amount: number, percent: number): number {
-  return Math.round((amount * percent) / 100);
 }
 
 /**
@@ -70,11 +60,6 @@ export async function accrueCommissionsForContract(contractId: string) {
   }
 
   const settings = await getPlatformSettings();
-  if (contract.amount < settings.minContractAmount) {
-    return { created: 0, skipped: true as const, reason: "below_minimum" as const };
-  }
-
-  const rows: Prisma.CommissionCreateManyInput[] = [];
 
   const platformAdmin = await prisma.user.findFirst({
     where: { role: "ADMIN" },
@@ -82,17 +67,6 @@ export async function accrueCommissionsForContract(contractId: string) {
     orderBy: { createdAt: "asc" },
   });
   const platformBeneficiaryId = platformAdmin?.id ?? contract.lawyer.userId;
-
-  rows.push({
-    contractId,
-    beneficiaryId: platformBeneficiaryId,
-    type: "PLATFORM" satisfies CommissionType,
-    level: 0,
-    percent: settings.platformFeePercent,
-    amount: percentOf(contract.amount, settings.platformFeePercent),
-    status: "PENDING",
-    note: "Комиссия платформы с договора",
-  });
 
   let levels = await getReferrerChain(
     contract.clientId,
@@ -115,31 +89,31 @@ export async function accrueCommissionsForContract(contractId: string) {
     }
   }
 
-  for (const ref of levels) {
-    if (ref.level === 1) {
-      rows.push({
-        contractId,
-        beneficiaryId: ref.id,
-        type: "REFERRAL_L1",
-        level: 1,
-        percent: settings.referralLevel1Percent,
-        amount: percentOf(contract.amount, settings.referralLevel1Percent),
-        status: "PENDING",
-        note: "Реферальное вознаграждение 1 уровня",
-      });
-    } else if (ref.level === 2) {
-      rows.push({
-        contractId,
-        beneficiaryId: ref.id,
-        type: "REFERRAL_L2",
-        level: 2,
-        percent: settings.referralLevel2Percent,
-        amount: percentOf(contract.amount, settings.referralLevel2Percent),
-        status: "PENDING",
-        note: "Реферальное вознаграждение 2 уровня",
-      });
-    }
+  const plan = buildCommissionPlan({
+    amountKopecks: contract.amount,
+    settings,
+    platformBeneficiaryId,
+    referrers: levels,
+  });
+
+  if (plan.length === 0) {
+    return {
+      created: 0,
+      skipped: true as const,
+      reason: "below_minimum" as const,
+    };
   }
+
+  const rows: Prisma.CommissionCreateManyInput[] = plan.map((row) => ({
+    contractId,
+    beneficiaryId: row.beneficiaryId,
+    type: row.type,
+    level: row.level,
+    percent: row.percent,
+    amount: row.amount,
+    status: "PENDING",
+    note: row.note,
+  }));
 
   await prisma.commission.createMany({ data: rows });
   return { created: rows.length, skipped: false as const };
@@ -147,6 +121,5 @@ export async function accrueCommissionsForContract(contractId: string) {
 
 export { formatRubFromKopecks, rubToKopecks } from "@/lib/platform/money";
 
-// Aliases for older call sites
 export const getPlatformFeeConfig = getPlatformSettings;
 export const accrueCommissions = accrueCommissionsForContract;

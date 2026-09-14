@@ -127,13 +127,10 @@ export async function requireAuth() {
   return user;
 }
 
-// Хелпер для проверки роли админа / staff CMS
+// Хелпер для проверки роли админа платформы / CMS
+// ВАЖНО: LAWYER больше не считается админом (иначе эскалация привилегий)
 export async function requireAdmin() {
-  const user = await requireAuth();
-  if (user.role !== "ADMIN" && user.role !== "LAWYER") {
-    throw new Error("Forbidden");
-  }
-  return user;
+  return requirePlatformAdmin();
 }
 
 // Только админ платформы (CMS сайта)

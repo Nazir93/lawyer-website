@@ -100,11 +100,36 @@ export async function POST(request: NextRequest) {
 
     const client = await prisma.user.findUnique({
       where: { id: clientId },
-      select: { id: true, referredById: true },
+      select: { id: true, referredById: true, role: true, email: true },
     });
 
-    if (!client) {
+    if (!client || client.role !== "CLIENT") {
       return NextResponse.json({ error: "Клиент не найден" }, { status: 404 });
+    }
+
+    // Юрист — только свои рефералы / прошлые договоры / лиды; ADMIN — любой CLIENT
+    if (user.role !== "ADMIN") {
+      const isReferral = client.referredById === user.id;
+      const priorContract = await prisma.contract.findFirst({
+        where: { clientId: client.id, lawyerId: profile.id },
+        select: { id: true },
+      });
+      const priorLead = client.email
+        ? await prisma.lead.findFirst({
+            where: { lawyerId: profile.id, email: client.email },
+            select: { id: true },
+          })
+        : null;
+
+      if (!isReferral && !priorContract && !priorLead) {
+        return NextResponse.json(
+          {
+            error:
+              "Клиент не связан с вами. Доступны рефералы, прошлые договоры или ваши лиды.",
+          },
+          { status: 403 }
+        );
+      }
     }
 
     const contract = await prisma.contract.create({
@@ -175,6 +200,7 @@ export async function PATCH(request: NextRequest) {
       const result = await markContractPaid({
         contractId: id,
         provider: "manual",
+        accrueCommissions: false,
       });
       return NextResponse.json({
         contract: result.contract,

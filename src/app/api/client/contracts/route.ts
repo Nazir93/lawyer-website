@@ -89,6 +89,7 @@ export async function PATCH(request: NextRequest) {
     const result = await markContractPaid({
       contractId: id,
       provider: "manual_client",
+      accrueCommissions: false,
     });
 
     return NextResponse.json({

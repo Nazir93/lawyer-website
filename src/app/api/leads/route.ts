@@ -9,6 +9,8 @@ import {
   buildLeadAssignedNotification,
   deliverLeadAssignedNotification,
 } from "@/lib/platform/lead-notify";
+import { requirePlatformAdmin } from "@/lib/auth/auth";
+import { authErrorResponse } from "@/lib/auth/api-guard";
 
 const N8N_LEAD_WEBHOOK = process.env.N8N_LEAD_WEBHOOK_URL;
 
@@ -116,6 +118,8 @@ async function sendToN8n(lead: {
 
 export async function GET(request: NextRequest) {
   try {
+    await requirePlatformAdmin();
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const limit = searchParams.get("limit");
@@ -142,7 +146,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data, count: data.length });
   } catch (error) {
     console.error("Error fetching leads:", error);
-    return NextResponse.json({ error: "Ошибка получения данных" }, { status: 500 });
+    return (
+      authErrorResponse(error) ||
+      NextResponse.json({ error: "Ошибка получения данных" }, { status: 500 })
+    );
   }
 }
 

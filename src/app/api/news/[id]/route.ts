@@ -20,7 +20,10 @@ export async function GET(
     return NextResponse.json({ data });
   } catch (error) {
     console.error("Error fetching news:", error);
-    return NextResponse.json({ error: "Ошибка получения данных" }, { status: 500 });
+    return (
+      authErrorResponse(error) ||
+      NextResponse.json({ error: "Ошибка получения данных" }, { status: 500 })
+    );
   }
 }
 
@@ -30,6 +33,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requirePlatformAdmin();
     const { id } = await params;
     const body = await request.json();
     
@@ -58,7 +62,10 @@ export async function PUT(
     return NextResponse.json({ data, success: true });
   } catch (error) {
     console.error("Error updating news:", error);
-    return NextResponse.json({ error: "Ошибка обновления" }, { status: 500 });
+    return (
+      authErrorResponse(error) ||
+      NextResponse.json({ error: "Ошибка обновления" }, { status: 500 })
+    );
   }
 }
 
@@ -68,6 +75,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requirePlatformAdmin();
     const { id } = await params;
     
     await prisma.news.delete({
@@ -77,6 +85,9 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting news:", error);
-    return NextResponse.json({ error: "Ошибка удаления" }, { status: 500 });
+    return (
+      authErrorResponse(error) ||
+      NextResponse.json({ error: "Ошибка удаления" }, { status: 500 })
+    );
   }
 }

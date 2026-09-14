@@ -34,9 +34,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // Проверка данных (опционально, если есть bot token)
+    // Проверка подписи Telegram обязательна
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (botToken && !verifyTelegramData(body, botToken)) {
+    if (!botToken) {
+      return NextResponse.json(
+        { error: "Telegram auth не настроен" },
+        { status: 503 }
+      );
+    }
+    if (!verifyTelegramData(body, botToken)) {
       return NextResponse.json(
         { error: "Неверные данные Telegram" },
         { status: 400 }

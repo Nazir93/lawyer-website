@@ -62,9 +62,24 @@ const typeLabel: Record<string, string> = {
 
 export default function AdminCommissionsPage() {
   const [items, setItems] = useState<CommissionItem[]>([]);
+  const [pendingContracts, setPendingContracts] = useState<
+    {
+      id: string;
+      title: string;
+      amountLabel: string;
+      lawyer: { displayName: string };
+      client: { name: string | null; email: string | null };
+    }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
+
+  const loadPending = useCallback(async () => {
+    const res = await fetch("/api/admin/contracts");
+    const data = await res.json();
+    if (res.ok) setPendingContracts(data.items || []);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,16 +90,40 @@ export default function AdminCommissionsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка загрузки");
       setItems(data.items || []);
+      await loadPending();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Ошибка загрузки");
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, loadPending]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  const accrue = async (id: string) => {
+    setUpdatingId(id);
+    try {
+      const res = await fetch("/api/admin/contracts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action: "accrue" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ошибка");
+      toast.success(
+        typeof data.commissions?.created === "number"
+          ? `Начислено: ${data.commissions.created}`
+          : "Комиссии обработаны"
+      );
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   const act = async (
     id: string,
@@ -137,6 +176,44 @@ export default function AdminCommissionsPage() {
           </SelectContent>
         </Select>
       </div>
+
+      {pendingContracts.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
+          <div>
+            <h2 className="font-medium">Ожидают начисления комиссий</h2>
+            <p className="text-sm text-muted-foreground">
+              Ручная оплата юриста/клиента не создаёт комиссии автоматически —
+              подтвердите здесь.
+            </p>
+          </div>
+          {pendingContracts.map((c) => (
+            <div
+              key={c.id}
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+            >
+              <div className="text-sm">
+                <p className="font-medium">{c.title}</p>
+                <p className="text-muted-foreground">
+                  {c.lawyer.displayName} ·{" "}
+                  {c.client.name || c.client.email} · {c.amountLabel}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                className="rounded-full"
+                disabled={updatingId === c.id}
+                onClick={() => accrue(c.id)}
+              >
+                {updatingId === c.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Начислить"
+                )}
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-24">

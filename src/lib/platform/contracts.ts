@@ -14,13 +14,16 @@ export {
 export { CONTRACT_STATUS_LABEL } from "@/lib/platform/contract-labels";
 
 /**
- * Отмечает договор оплаченным, пишет Payment(manual) и начисляет комиссии.
- * Идемпотентно по статусу PAID.
+ * Отмечает договор оплаченным и пишет Payment.
+ * Комиссии начисляются только если accrueCommissions=true
+ * (PSP webhook / подтверждение админа) — не по самозаявлению юриста/клиента.
  */
 export async function markContractPaid(params: {
   contractId: string;
   provider?: string;
+  accrueCommissions?: boolean;
 }) {
+  const accrue = params.accrueCommissions === true;
   const contract = await prisma.contract.findUnique({
     where: { id: params.contractId },
   });
@@ -30,7 +33,9 @@ export async function markContractPaid(params: {
   }
 
   if (contract.status === "PAID") {
-    const commissions = await accrueCommissionsForContract(contract.id);
+    const commissions = accrue
+      ? await accrueCommissionsForContract(contract.id)
+      : { created: 0, skipped: true as const, reason: "no_accrue" as const };
     return { contract, commissions, alreadyPaid: true as const };
   }
 
@@ -57,6 +62,9 @@ export async function markContractPaid(params: {
     },
   });
 
-  const commissions = await accrueCommissionsForContract(contract.id);
+  const commissions = accrue
+    ? await accrueCommissionsForContract(updated.id)
+    : { created: 0, skipped: true as const, reason: "manual_pending_review" as const };
+
   return { contract: updated, commissions, alreadyPaid: false as const };
 }

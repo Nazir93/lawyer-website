@@ -15,13 +15,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data, count: data.length });
   } catch (error) {
     console.error("Error fetching pricing:", error);
-    return NextResponse.json({ error: "Ошибка получения данных" }, { status: 500 });
+    return (
+      authErrorResponse(error) ||
+      NextResponse.json({ error: "Ошибка получения данных" }, { status: 500 })
+    );
   }
 }
 
 // POST - Создать тариф
 export async function POST(request: NextRequest) {
   try {
+    await requirePlatformAdmin();
     const body = await request.json();
     
     if (!body.name || !body.price) {
@@ -47,6 +51,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data, success: true });
   } catch (error) {
     console.error("Error creating pricing:", error);
-    return NextResponse.json({ error: "Ошибка создания" }, { status: 500 });
+    return (
+      authErrorResponse(error) ||
+      NextResponse.json({ error: "Ошибка создания" }, { status: 500 })
+    );
   }
 }

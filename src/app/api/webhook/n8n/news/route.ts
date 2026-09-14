@@ -1,21 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
-// Секретный ключ для защиты webhook (добавь в .env.local)
-const WEBHOOK_SECRET = process.env.N8N_WEBHOOK_SECRET || "your-secret-key";
+function requireWebhookSecret(request: NextRequest): NextResponse | null {
+  const secret = process.env.N8N_WEBHOOK_SECRET;
+  if (!secret || secret.length < 16) {
+    return NextResponse.json(
+      { error: "Webhook secret not configured" },
+      { status: 503 }
+    );
+  }
+  const authHeader = request.headers.get("x-webhook-secret");
+  if (authHeader !== secret) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return null;
+}
 
-// POST - Создать новость из n8n
 export async function POST(request: NextRequest) {
   try {
-    // Проверяем секретный ключ
-    const authHeader = request.headers.get("x-webhook-secret");
-    if (authHeader !== WEBHOOK_SECRET) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const denied = requireWebhookSecret(request);
+    if (denied) return denied;
 
     const body = await request.json();
 
-    // Валидация обязательных полей
     if (!body.title) {
       return NextResponse.json(
         { error: "Title is required" },
@@ -23,10 +30,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Генерируем slug из заголовка
     const slug = body.slug || generateSlug(body.title);
 
-    // Создаём новость
     const news = await prisma.news.create({
       data: {
         title: body.title,
@@ -35,7 +40,8 @@ export async function POST(request: NextRequest) {
         content: body.content || body.description || null,
         imageUrl: body.image_url || body.imageUrl || null,
         isPublished: body.is_published ?? body.isPublished ?? true,
-        publishedAt: (body.is_published ?? body.isPublished ?? true) ? new Date() : null,
+        publishedAt:
+          (body.is_published ?? body.isPublished ?? true) ? new Date() : null,
       },
     });
 
@@ -58,7 +64,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Генерация slug из заголовка
 function generateSlug(title: string): string {
   const timestamp = Date.now();
   const baseSlug = title
@@ -66,14 +71,6 @@ function generateSlug(title: string): string {
     .replace(/[^a-zа-яё0-9\s]/gi, "")
     .replace(/\s+/g, "-")
     .substring(0, 50);
-  
+
   return `${baseSlug}-${timestamp}`;
 }
-
-// Оценка времени чтения
-function estimateReadTime(content: string): string {
-  const words = content.split(/\s+/).length;
-  const minutes = Math.ceil(words / 200);
-  return `${minutes} мин`;
-}
-

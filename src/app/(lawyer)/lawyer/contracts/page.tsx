@@ -118,11 +118,8 @@ export default function LawyerContractsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Не удалось выполнить");
       if (action === "mark_paid") {
-        const created = data.commissions?.created;
         toast.success(
-          typeof created === "number"
-            ? `Оплачено. Начислено комиссий: ${created}`
-            : "Договор отмечен как оплаченный"
+          "Оплачено. Комиссии начислит админ после проверки (ручная оплата)."
         );
       } else if (action === "send") {
         toast.success("Договор отправлен клиенту");

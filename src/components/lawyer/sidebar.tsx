@@ -9,6 +9,7 @@ import {
   Link2,
   Settings,
   Briefcase,
+  Inbox,
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,7 @@ import { useAuth } from "@/hooks/use-auth";
 
 const navigation = [
   { title: "Обзор", href: "/lawyer", icon: LayoutDashboard },
+  { title: "Заявки", href: "/lawyer/leads", icon: Inbox },
   { title: "Рефералы", href: "/lawyer/referrals", icon: Users },
   { title: "Начисления", href: "/lawyer/earnings", icon: Wallet },
   { title: "Договоры", href: "/lawyer/contracts", icon: Briefcase },

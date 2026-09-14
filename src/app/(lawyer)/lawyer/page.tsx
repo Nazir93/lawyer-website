@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Copy, Loader2, Users, Wallet, Briefcase, Link2 } from "lucide-react";
+import {
+  Copy,
+  Loader2,
+  Users,
+  Wallet,
+  Briefcase,
+  Link2,
+  Inbox,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { formatRubFromKopecks } from "@/lib/platform/money";
@@ -17,9 +25,12 @@ type Overview = {
   } | null;
   referralCode: string | null;
   inviteUrl: string;
+  profileUrl: string | null;
   stats: {
     referrals: number;
     contracts: number;
+    leadsTotal: number;
+    leadsNew: number;
     earnedKopecks: number;
     pendingKopecks: number;
   };
@@ -62,10 +73,10 @@ export default function LawyerHomePage() {
     REJECTED: "Отклонён",
   };
 
-  const copyInvite = async () => {
+  const copyText = async (value: string, okMessage: string) => {
     try {
-      await navigator.clipboard.writeText(data.inviteUrl);
-      toast.success("Ссылка скопирована");
+      await navigator.clipboard.writeText(value);
+      toast.success(okMessage);
     } catch {
       toast.error("Не удалось скопировать");
     }
@@ -92,8 +103,18 @@ export default function LawyerHomePage() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {[
+          {
+            label: "Новые заявки",
+            value: String(data.stats.leadsNew ?? 0),
+            hint:
+              data.stats.leadsTotal > 0
+                ? `из ${data.stats.leadsTotal}`
+                : undefined,
+            icon: Inbox,
+            href: "/lawyer/leads",
+          },
           {
             label: "Рефералы",
             value: String(data.stats.referrals),
@@ -131,6 +152,9 @@ export default function LawyerHomePage() {
                 <Icon className="h-4 w-4 text-muted-foreground" />
               </div>
               <p className="text-2xl font-medium tracking-tight">{card.value}</p>
+              {"hint" in card && card.hint ? (
+                <p className="text-xs text-muted-foreground mt-1">{card.hint}</p>
+              ) : null}
             </Link>
           );
         })}
@@ -139,22 +163,57 @@ export default function LawyerHomePage() {
       <div className="rounded-2xl border border-border p-6 space-y-4">
         <div className="flex items-center gap-2">
           <Link2 className="h-4 w-4" />
-          <h2 className="text-lg font-medium">Реферальная ссылка</h2>
+          <h2 className="text-lg font-medium">Ссылки</h2>
         </div>
         <p className="text-sm text-muted-foreground">
-          Код: <span className="font-mono text-foreground">{data.referralCode || "—"}</span>
+          Код:{" "}
+          <span className="font-mono text-foreground">
+            {data.referralCode || "—"}
+          </span>
           . Платформа: {data.fees.platformFeePercent}% · L1:{" "}
           {data.fees.referralLevel1Percent}% · L2:{" "}
           {data.fees.referralLevel2Percent}% (с оплаченного договора).
         </p>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <code className="flex-1 rounded-xl bg-secondary/50 px-4 py-3 text-sm break-all">
-            {data.inviteUrl}
-          </code>
-          <Button onClick={copyInvite} className="rounded-full shrink-0">
-            <Copy className="h-4 w-4 mr-2" />
-            Копировать
-          </Button>
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">
+              Реферальная
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <code className="flex-1 rounded-xl bg-secondary/50 px-4 py-3 text-sm break-all">
+                {data.inviteUrl}
+              </code>
+              <Button
+                onClick={() => copyText(data.inviteUrl, "Реферальная ссылка скопирована")}
+                className="rounded-full shrink-0"
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Копировать
+              </Button>
+            </div>
+          </div>
+          {data.profileUrl && (
+            <div>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">
+                Публичный профиль
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <code className="flex-1 rounded-xl bg-secondary/50 px-4 py-3 text-sm break-all">
+                  {data.profileUrl}
+                </code>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    copyText(data.profileUrl!, "Ссылка на профиль скопирована")
+                  }
+                  className="rounded-full shrink-0"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Копировать
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

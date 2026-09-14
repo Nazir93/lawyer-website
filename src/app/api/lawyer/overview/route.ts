@@ -59,35 +59,51 @@ export async function GET() {
     const profile = dbUser!.lawyerProfile;
     const settings = await getPlatformSettings();
 
-    const [referrals, earned, pending, contracts] = await Promise.all([
-      prisma.user.count({ where: { referredById: user.id } }),
-      prisma.commission.aggregate({
-        where: { beneficiaryId: user.id },
-        _sum: { amount: true },
-      }),
-      prisma.commission.aggregate({
-        where: { beneficiaryId: user.id, status: "PENDING" },
-        _sum: { amount: true },
-      }),
-      profile
-        ? prisma.contract.count({ where: { lawyerId: profile.id } })
-        : Promise.resolve(0),
-    ]);
+    const [referrals, earned, pending, contracts, leadsTotal, leadsNew] =
+      await Promise.all([
+        prisma.user.count({ where: { referredById: user.id } }),
+        prisma.commission.aggregate({
+          where: { beneficiaryId: user.id },
+          _sum: { amount: true },
+        }),
+        prisma.commission.aggregate({
+          where: { beneficiaryId: user.id, status: "PENDING" },
+          _sum: { amount: true },
+        }),
+        profile
+          ? prisma.contract.count({ where: { lawyerId: profile.id } })
+          : Promise.resolve(0),
+        profile
+          ? prisma.lead.count({ where: { lawyerId: profile.id } })
+          : Promise.resolve(0),
+        profile
+          ? prisma.lead.count({
+              where: { lawyerId: profile.id, status: "NEW" },
+            })
+          : Promise.resolve(0),
+      ]);
 
     const origin =
       process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || "";
+    const base = origin.replace(/\/$/, "");
     const code = dbUser!.referralCode;
     const invitePath = code ? `/register?ref=${code}` : "/register";
+    const profilePath = profile?.slug ? `/lawyers/${profile.slug}` : null;
 
     return NextResponse.json({
       profile,
       referralCode: code,
-      inviteUrl: origin
-        ? `${origin.replace(/\/$/, "")}${invitePath}`
-        : invitePath,
+      inviteUrl: base ? `${base}${invitePath}` : invitePath,
+      profileUrl: profilePath
+        ? base
+          ? `${base}${profilePath}`
+          : profilePath
+        : null,
       stats: {
         referrals,
         contracts,
+        leadsTotal,
+        leadsNew,
         earnedKopecks: earned._sum.amount || 0,
         pendingKopecks: pending._sum.amount || 0,
       },

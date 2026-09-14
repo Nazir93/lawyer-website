@@ -11,6 +11,10 @@ import {
 } from "@/lib/platform/lead-notify";
 import { requirePlatformAdmin } from "@/lib/auth/auth";
 import { authErrorResponse } from "@/lib/auth/api-guard";
+import {
+  checkRateLimit,
+  clientIpFromRequest,
+} from "@/lib/security/rate-limit";
 
 const N8N_LEAD_WEBHOOK = process.env.N8N_LEAD_WEBHOOK_URL;
 
@@ -155,6 +159,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = clientIpFromRequest(request);
+    const limited = checkRateLimit({
+      key: `leads:ip:${ip}`,
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (!limited.allowed) {
+      return NextResponse.json(
+        { error: "Слишком много заявок. Попробуйте позже" },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
 
     if (!body.name || !body.phone) {

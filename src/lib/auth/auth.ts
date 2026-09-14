@@ -28,6 +28,7 @@ declare module "@auth/core/jwt" {
   interface JWT {
     role: UserRole;
     phone?: string | null;
+    roleCheckedAt?: number;
   }
 }
 
@@ -57,7 +58,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         const email = (credentials.email as string).trim().toLowerCase();
-        
+
+        const { checkRateLimit } = await import("@/lib/security/rate-limit");
+        const limited = checkRateLimit({
+          key: `login:email:${email}`,
+          limit: 10,
+          windowMs: 15 * 60 * 1000,
+        });
+        if (!limited.allowed) {
+          throw new Error("Слишком много попыток входа. Попробуйте позже");
+        }
+
         // Валидация email формата
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
@@ -69,7 +80,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
 
         if (!user || !user.password) {
-          // Используем общее сообщение для безопасности
           throw new Error("Неверный email или пароль");
         }
 
@@ -98,7 +108,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.role = user.role;
         token.phone = user.phone;
+        token.roleCheckedAt = Date.now();
+        return token;
       }
+
+      // Периодически подтягиваем роль из БД (бан/демоут не ждут 30 дней)
+      const checkedAt = token.roleCheckedAt ?? 0;
+      const stale = Date.now() - checkedAt > 5 * 60 * 1000;
+      if (token.sub && stale) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { role: true, phone: true },
+        });
+        if (!dbUser) {
+          return { ...token, role: undefined, phone: undefined };
+        }
+        token.role = dbUser.role;
+        token.phone = dbUser.phone;
+        token.roleCheckedAt = Date.now();
+      }
+
       return token;
     },
     async session({ session, token }) {

@@ -62,14 +62,35 @@ export async function POST(request: NextRequest) {
         conversationId = `user_${user.id}`;
       }
     }
-    
+
+    // Доступ к делу: участник UserCase, юрист-владелец или ADMIN
+    if (body.case_id) {
+      const caseId = String(body.case_id);
+      if (user.role !== "ADMIN") {
+        const asClient = await prisma.userCase.findFirst({
+          where: { userId: user.id, caseId },
+          select: { id: true },
+        });
+        const asLawyer = await prisma.case.findFirst({
+          where: { id: caseId, lawyer: { userId: user.id } },
+          select: { id: true },
+        });
+        if (!asClient && !asLawyer) {
+          return NextResponse.json(
+            { error: "Нет доступа к этому делу" },
+            { status: 403 }
+          );
+        }
+      }
+    }
+
     const data = await prisma.message.create({
       data: {
         conversationId,
         senderId: user.id,
         receiverId: body.receiver_id || null,
-        conversationType: body.conversation_type 
-          ? (body.conversation_type.toUpperCase() as ConversationType) 
+        conversationType: body.conversation_type
+          ? (body.conversation_type.toUpperCase() as ConversationType)
           : "GENERAL",
         caseId: body.case_id || null,
         messageText: body.message_text,

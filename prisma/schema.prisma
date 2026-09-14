@@ -625,6 +625,9 @@ model Appointment {
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   caseId          String?
   case            Case?             @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  // Юрист, к которому запись (мультиюрист)
+  lawyerId        String?
+  lawyer          LawyerProfile?    @relation(fields: [lawyerId], references: [id], onDelete: SetNull)
   
   title           String
   description     String?
@@ -642,6 +645,7 @@ model Appointment {
   updatedAt       DateTime          @updatedAt
   
   @@index([userId])
+  @@index([lawyerId])
   @@index([appointmentDate])
   @@index([status])
 }
@@ -674,6 +678,10 @@ model TimeSlot {
   
   // Связь с записью (если слот забронирован)
   appointmentId String?      @unique
+
+  // Владелец слота (юрист); null = общий слот платформы/админа
+  lawyerId      String?
+  lawyer        LawyerProfile? @relation(fields: [lawyerId], references: [id], onDelete: Cascade)
   
   // Повторяющиеся слоты (если нужно создать на основе шаблона)
   isRecurring   Boolean      @default(false)
@@ -681,8 +689,9 @@ model TimeSlot {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   
-  @@unique([date, startTime])
+  @@unique([date, startTime, lawyerId])
   @@index([date])
+  @@index([lawyerId])
   @@index([isBooked])
   @@index([isAvailable])
 }
@@ -711,6 +720,8 @@ model LawyerProfile {
   cases           Case[]
   leads           Lead[]
   contracts       Contract[]
+  appointments    Appointment[]
+  timeSlots       TimeSlot[]
 
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt

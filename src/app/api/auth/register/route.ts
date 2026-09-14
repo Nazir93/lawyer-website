@@ -7,11 +7,28 @@ import {
   findReferrerByCode,
 } from "@/lib/platform/referral";
 import { Prisma } from "@prisma/client";
+import {
+  checkRateLimit,
+  clientIpFromRequest,
+} from "@/lib/security/rate-limit";
 
 type AccountType = "CLIENT" | "LAWYER";
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = clientIpFromRequest(request);
+    const limited = checkRateLimit({
+      key: `register:ip:${ip}`,
+      limit: 8,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (!limited.allowed) {
+      return NextResponse.json(
+        { error: "Слишком много регистраций с этого IP. Попробуйте позже" },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
 
     const {

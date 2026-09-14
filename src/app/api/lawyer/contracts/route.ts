@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireLawyer } from "@/lib/auth/auth";
 import { prisma } from "@/lib/db";
+import { formatRubFromKopecks } from "@/lib/platform/commission";
 import {
-  accrueCommissionsForContract,
-  formatRubFromKopecks,
-} from "@/lib/platform/commission";
+  canLawyerTransition,
+  isLawyerContractAction,
+  markContractPaid,
+  nextStatusForLawyerAction,
+} from "@/lib/platform/contracts";
 
 export async function GET() {
   try {
@@ -128,14 +131,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** PATCH { id, action: "mark_paid" } */
+/** PATCH { id, action: "send" | "mark_paid" | "cancel" } */
 export async function PATCH(request: NextRequest) {
   try {
     const user = await requireLawyer();
     const body = await request.json();
     const { id, action } = body;
 
-    if (!id || action !== "mark_paid") {
+    if (!id || typeof action !== "string" || !isLawyerContractAction(action)) {
       return NextResponse.json({ error: "Некорректный запрос" }, { status: 400 });
     }
 
@@ -155,28 +158,36 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    if (!canLawyerTransition(contract.status, action)) {
+      return NextResponse.json(
+        {
+          error: `Действие «${action}» недоступно для статуса ${contract.status}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (action === "mark_paid") {
+      const result = await markContractPaid({
+        contractId: id,
+        provider: "manual",
+      });
+      return NextResponse.json({
+        contract: result.contract,
+        commissions: result.commissions,
+      });
+    }
+
+    const nextStatus = nextStatusForLawyerAction(action);
     const updated = await prisma.contract.update({
       where: { id },
       data: {
-        status: "PAID",
-        paidAt: new Date(),
-        signedAt: contract.signedAt ?? new Date(),
+        status: nextStatus,
+        ...(action === "send" ? {} : {}),
       },
     });
 
-    await prisma.payment.create({
-      data: {
-        contractId: id,
-        amount: contract.amount,
-        status: "SUCCEEDED",
-        provider: "manual",
-        paidAt: new Date(),
-      },
-    });
-
-    const commissions = await accrueCommissionsForContract(id);
-
-    return NextResponse.json({ contract: updated, commissions });
+    return NextResponse.json({ contract: updated });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error";
     if (message === "Unauthorized") {

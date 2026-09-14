@@ -1,65 +1,91 @@
 "use client";
 
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  CreditCard,
-  Download,
   Clock,
   CheckCircle2,
   AlertCircle,
-  ArrowUpRight,
+  Loader2,
+  FileSignature,
   Receipt,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import { CONTRACT_STATUS_LABEL } from "@/lib/platform/contract-labels";
 
-// Временные данные
-const invoices = [
-  {
-    id: "INV-001",
-    description: "Консультация по семейному праву",
-    amount: 5000,
-    date: "20 января 2024",
-    dueDate: "25 января 2024",
-    status: "pending",
-  },
-  {
-    id: "INV-002",
-    description: "Подготовка искового заявления",
-    amount: 15000,
-    date: "15 декабря 2023",
-    dueDate: "20 декабря 2023",
-    status: "paid",
-  },
-  {
-    id: "INV-003",
-    description: "Представительство в суде (первая инстанция)",
-    amount: 30000,
-    date: "1 декабря 2023",
-    dueDate: "10 декабря 2023",
-    status: "paid",
-  },
-];
+type ContractItem = {
+  id: string;
+  title: string;
+  description: string | null;
+  status: keyof typeof CONTRACT_STATUS_LABEL;
+  amountRub: number;
+  amountLabel: string;
+  createdAt: string;
+  signedAt: string | null;
+  paidAt: string | null;
+  lawyer: {
+    displayName: string;
+    slug: string;
+    specialization: string | null;
+  };
+};
 
-const statusConfig = {
-  pending: {
-    label: "К оплате",
+const statusUi: Record<
+  string,
+  {
+    label: string;
+    color: string;
+    textColor: string;
+    bgColor: string;
+    icon: typeof Clock;
+  }
+> = {
+  DRAFT: {
+    label: CONTRACT_STATUS_LABEL.DRAFT,
+    color: "bg-muted-foreground",
+    textColor: "text-muted-foreground",
+    bgColor: "bg-secondary",
+    icon: Clock,
+  },
+  SENT: {
+    label: CONTRACT_STATUS_LABEL.SENT,
     color: "bg-yellow-500",
     textColor: "text-yellow-600 dark:text-yellow-400",
     bgColor: "bg-yellow-50 dark:bg-yellow-950",
     icon: Clock,
   },
-  paid: {
-    label: "Оплачено",
+  SIGNED: {
+    label: CONTRACT_STATUS_LABEL.SIGNED,
+    color: "bg-blue-500",
+    textColor: "text-blue-600 dark:text-blue-400",
+    bgColor: "bg-blue-50 dark:bg-blue-950",
+    icon: FileSignature,
+  },
+  PAID: {
+    label: CONTRACT_STATUS_LABEL.PAID,
     color: "bg-green-500",
     textColor: "text-green-600 dark:text-green-400",
     bgColor: "bg-green-50 dark:bg-green-950",
     icon: CheckCircle2,
   },
-  overdue: {
-    label: "Просрочено",
+  CANCELLED: {
+    label: CONTRACT_STATUS_LABEL.CANCELLED,
+    color: "bg-red-500",
+    textColor: "text-red-600 dark:text-red-400",
+    bgColor: "bg-red-50 dark:bg-red-950",
+    icon: AlertCircle,
+  },
+  REFUNDED: {
+    label: CONTRACT_STATUS_LABEL.REFUNDED,
     color: "bg-red-500",
     textColor: "text-red-600 dark:text-red-400",
     bgColor: "bg-red-50 dark:bg-red-950",
@@ -68,217 +94,229 @@ const statusConfig = {
 };
 
 export default function BillingPage() {
-  const totalPending = invoices
-    .filter((i) => i.status === "pending")
-    .reduce((acc, i) => acc + i.amount, 0);
-  const totalPaid = invoices
-    .filter((i) => i.status === "paid")
-    .reduce((acc, i) => acc + i.amount, 0);
+  const [items, setItems] = useState<ContractItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actingId, setActingId] = useState<string | null>(null);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("ru-RU", {
+  const load = useCallback(async () => {
+    const res = await fetch("/api/client/contracts");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Ошибка загрузки");
+    setItems(data.items || []);
+  }, []);
+
+  useEffect(() => {
+    load()
+      .catch((e) => toast.error(e.message || "Ошибка загрузки"))
+      .finally(() => setLoading(false));
+  }, [load]);
+
+  const totals = useMemo(() => {
+    const pending = items.filter((i) =>
+      ["SENT", "SIGNED"].includes(i.status)
+    );
+    const paid = items.filter((i) => i.status === "PAID");
+    return {
+      pendingRub: pending.reduce((a, i) => a + i.amountRub, 0),
+      paidRub: paid.reduce((a, i) => a + i.amountRub, 0),
+      count: items.length,
+    };
+  }, [items]);
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("ru-RU", {
       style: "currency",
       currency: "RUB",
       minimumFractionDigits: 0,
     }).format(amount);
+
+  const act = async (id: string, action: "sign" | "confirm_paid") => {
+    setActingId(id);
+    try {
+      const res = await fetch("/api/client/contracts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ошибка");
+      toast.success(
+        action === "sign"
+          ? "Договор подписан"
+          : "Оплата подтверждена. Комиссии начислены партнёрам."
+      );
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setActingId(null);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-light tracking-tight">Оплата</h1>
         <p className="text-muted-foreground mt-1">
-          Управление счетами и платежами
+          Договоры с юристами: подписание и подтверждение оплаты
         </p>
       </div>
 
-      {/* Stats */}
       <div className="grid sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">К оплате</p>
-                <p className="text-3xl font-light tracking-tight mt-1">
-                  {formatCurrency(totalPending)}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
-                <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-              </div>
-            </div>
+            <p className="text-sm text-muted-foreground">К оплате</p>
+            <p className="text-3xl font-light tracking-tight mt-1">
+              {formatCurrency(totals.pendingRub)}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Оплачено всего</p>
-                <p className="text-3xl font-light tracking-tight mt-1">
-                  {formatCurrency(totalPaid)}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
+            <p className="text-sm text-muted-foreground">Оплачено</p>
+            <p className="text-3xl font-light tracking-tight mt-1">
+              {formatCurrency(totals.paidRub)}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Всего счетов</p>
-                <p className="text-3xl font-light tracking-tight mt-1">
-                  {invoices.length}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
-                <Receipt className="h-6 w-6" />
-              </div>
-            </div>
+            <p className="text-sm text-muted-foreground">Всего договоров</p>
+            <p className="text-3xl font-light tracking-tight mt-1">
+              {totals.count}
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Invoices */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-medium">Счета</h2>
-          </div>
+      <div className="space-y-4">
+        <h2 className="text-xl font-medium flex items-center gap-2">
+          <Receipt className="h-5 w-5" />
+          Договоры
+        </h2>
 
-          {invoices.map((invoice, index) => {
-            const status = statusConfig[invoice.status as keyof typeof statusConfig];
-            const StatusIcon = status.icon;
+        {items.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center text-muted-foreground">
+              Договоров пока нет. Когда юрист отправит вам договор, он появится
+              здесь.
+            </CardContent>
+          </Card>
+        ) : (
+          items.map((item, index) => {
+            const ui = statusUi[item.status] || statusUi.DRAFT;
+            const StatusIcon = ui.icon;
+            const canSign = item.status === "SENT";
+            const canPay =
+              item.status === "SENT" || item.status === "SIGNED";
+
             return (
               <motion.div
-                key={invoice.id}
-                initial={{ opacity: 0, y: 20 }}
+                key={item.id}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
+                transition={{ delay: index * 0.05 }}
               >
                 <Card className="hover:border-foreground/20 transition-colors">
                   <CardContent className="p-6">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                       <div
-                        className={`w-12 h-12 rounded-xl ${status.bgColor} flex items-center justify-center shrink-0`}
+                        className={`w-12 h-12 rounded-xl ${ui.bgColor} flex items-center justify-center shrink-0`}
                       >
-                        <StatusIcon className={`h-6 w-6 ${status.textColor}`} />
+                        <StatusIcon className={`h-6 w-6 ${ui.textColor}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium">{invoice.description}</p>
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <p className="font-medium">{item.title}</p>
                           <Badge variant="outline" className="text-xs">
-                            {invoice.id}
+                            {ui.label}
                           </Badge>
                         </div>
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                          <span>Выставлен: {invoice.date}</span>
-                          <span>•</span>
-                          <span>Оплатить до: {invoice.dueDate}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="text-xl font-medium">
-                            {formatCurrency(invoice.amount)}
+                        <p className="text-sm text-muted-foreground">
+                          {item.lawyer.displayName}
+                          {item.lawyer.specialization
+                            ? ` · ${item.lawyer.specialization}`
+                            : ""}
+                          {" · "}
+                          {new Date(item.createdAt).toLocaleDateString("ru-RU")}
+                        </p>
+                        {item.description && (
+                          <p className="text-sm mt-2 text-muted-foreground">
+                            {item.description}
                           </p>
-                          <Badge
-                            variant="secondary"
-                            className={`${status.textColor} gap-1`}
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${status.color}`} />
-                            {status.label}
-                          </Badge>
-                        </div>
-                        {invoice.status === "pending" ? (
-                          <Button className="rounded-full">Оплатить</Button>
-                        ) : (
-                          <Button variant="outline" size="icon" className="rounded-full">
-                            <Download className="h-4 w-4" />
-                          </Button>
                         )}
+                      </div>
+                      <div className="flex flex-col sm:items-end gap-2 shrink-0">
+                        <p className="text-xl font-medium">
+                          {item.amountLabel}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {canSign && (
+                            <Button
+                              variant="outline"
+                              className="rounded-full"
+                              disabled={actingId === item.id}
+                              onClick={() => act(item.id, "sign")}
+                            >
+                              {actingId === item.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <FileSignature className="h-4 w-4 mr-1.5" />
+                                  Подписать
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          {canPay && (
+                            <Button
+                              className="rounded-full"
+                              disabled={actingId === item.id}
+                              onClick={() => act(item.id, "confirm_paid")}
+                            >
+                              {actingId === item.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                "Подтвердить оплату"
+                              )}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               </motion.div>
             );
-          })}
-        </div>
-
-        {/* Payment Methods */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Способы оплаты</CardTitle>
-              <CardDescription>Сохранённые карты</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 rounded-xl border border-border">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-8 bg-gradient-to-r from-blue-600 to-blue-400 rounded flex items-center justify-center text-white text-xs font-bold">
-                    VISA
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium">•••• 4242</p>
-                    <p className="text-sm text-muted-foreground">12/25</p>
-                  </div>
-                  <Badge variant="secondary">Основная</Badge>
-                </div>
-              </div>
-
-              <Button variant="outline" className="w-full rounded-full">
-                <CreditCard className="mr-2 h-4 w-4" />
-                Добавить карту
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Быстрая оплата</CardTitle>
-              <CardDescription>Оплата по реквизитам</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 rounded-xl bg-secondary/50">
-                <p className="text-sm font-medium mb-2">Реквизиты для оплаты:</p>
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <p>Получатель: ИП Иванов И.И.</p>
-                  <p>ИНН: 123456789012</p>
-                  <p>Р/с: 40802810000000000000</p>
-                  <p>Банк: ПАО Сбербанк</p>
-                  <p>БИК: 044525225</p>
-                </div>
-              </div>
-
-              <Button variant="outline" className="w-full rounded-full gap-2">
-                Скачать реквизиты
-                <Download className="h-4 w-4" />
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-foreground to-foreground/80 text-background">
-            <CardContent className="p-6">
-              <p className="text-sm opacity-80 mb-2">Есть вопросы?</p>
-              <p className="font-medium mb-4">
-                Свяжитесь с нами для уточнения деталей оплаты
-              </p>
-              <Button
-                variant="secondary"
-                className="rounded-full gap-2 text-foreground"
-              >
-                Написать
-                <ArrowUpRight className="h-4 w-4" />
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+          })
+        )}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Как это работает</CardTitle>
+          <CardDescription>
+            Пока без эквайринга: оплата вне платформы, статус фиксируется здесь
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground space-y-2">
+          <p>1. Юрист создаёт договор и отправляет вам.</p>
+          <p>2. Вы подписываете (фиксируем согласие).</p>
+          <p>
+            3. После реальной оплаты нажимаете «Подтвердить оплату» — или это
+            делает юрист. Тогда начисляются комиссии платформы и рефералов.
+          </p>
+          <p>ЮKassa / онлайн-оплата — следующий этап.</p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-

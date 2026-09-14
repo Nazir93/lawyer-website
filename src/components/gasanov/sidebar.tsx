@@ -20,6 +20,7 @@ import {
   Menu,
   X,
   Percent,
+  Banknote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,12 @@ const navigation = [
         icon: Scale,
       },
       {
-        title: "Комиссии",
+        title: "Начисления",
+        href: "/gasanov/commissions",
+        icon: Banknote,
+      },
+      {
+        title: "% платформы",
         href: "/gasanov/platform",
         icon: Percent,
       },

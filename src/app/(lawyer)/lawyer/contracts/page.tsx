@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Loader2, Plus } from "lucide-react";
+import {
+  CheckCircle2,
+  Loader2,
+  Plus,
+  Send,
+  XCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,11 +20,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { CONTRACT_STATUS_LABEL } from "@/lib/platform/contract-labels";
 
 type Contract = {
   id: string;
   title: string;
-  status: string;
+  status: keyof typeof CONTRACT_STATUS_LABEL;
   amountLabel: string;
   createdAt: string;
   client: { name: string | null; email: string | null };
@@ -38,7 +45,7 @@ export default function LawyerContractsPage() {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [payingId, setPayingId] = useState<string | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "",
     amountRub: "",
@@ -97,27 +104,36 @@ export default function LawyerContractsPage() {
     }
   };
 
-  const markPaid = async (id: string) => {
-    setPayingId(id);
+  const act = async (
+    id: string,
+    action: "send" | "mark_paid" | "cancel"
+  ) => {
+    setActingId(id);
     try {
       const res = await fetch("/api/lawyer/contracts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, action: "mark_paid" }),
+        body: JSON.stringify({ id, action }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Не удалось отметить оплату");
-      const created = data.commissions?.created;
-      toast.success(
-        typeof created === "number"
-          ? `Оплачено. Начислено комиссий: ${created}`
-          : "Договор отмечен как оплаченный"
-      );
+      if (!res.ok) throw new Error(data.error || "Не удалось выполнить");
+      if (action === "mark_paid") {
+        const created = data.commissions?.created;
+        toast.success(
+          typeof created === "number"
+            ? `Оплачено. Начислено комиссий: ${created}`
+            : "Договор отмечен как оплаченный"
+        );
+      } else if (action === "send") {
+        toast.success("Договор отправлен клиенту");
+      } else {
+        toast.success("Договор отменён");
+      }
       await loadContracts();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Ошибка");
     } finally {
-      setPayingId(null);
+      setActingId(null);
     }
   };
 
@@ -135,8 +151,8 @@ export default function LawyerContractsPage() {
         <div>
           <h1 className="text-3xl font-light tracking-tight">Договоры</h1>
           <p className="text-muted-foreground mt-2">
-            Создайте договор и отметьте оплату — комиссии начислятся
-            автоматически.
+            Черновик → отправка клиенту → подпись/оплата. Комиссии начисляются
+            после статуса PAID.
           </p>
         </div>
         <Button className="rounded-full" onClick={() => setShowForm((v) => !v)}>
@@ -239,7 +255,9 @@ export default function LawyerContractsPage() {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium">{item.title}</p>
-                  <Badge variant="secondary">{item.status}</Badge>
+                  <Badge variant="secondary">
+                    {CONTRACT_STATUS_LABEL[item.status] || item.status}
+                  </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {item.client.name || item.client.email} ·{" "}
@@ -249,23 +267,57 @@ export default function LawyerContractsPage() {
                     : ""}
                 </p>
               </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <p className="font-medium">{item.amountLabel}</p>
-                {item.status !== "PAID" && item.status !== "CANCELLED" && (
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <p className="font-medium mr-1">{item.amountLabel}</p>
+                {item.status === "DRAFT" && (
                   <Button
                     size="sm"
+                    variant="outline"
                     className="rounded-full"
-                    disabled={payingId === item.id}
-                    onClick={() => markPaid(item.id)}
+                    disabled={actingId === item.id}
+                    onClick={() => act(item.id, "send")}
                   >
-                    {payingId === item.id ? (
+                    {actingId === item.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <>
-                        <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                        Оплачен
+                        <Send className="h-4 w-4 mr-1.5" />
+                        Отправить
                       </>
                     )}
+                  </Button>
+                )}
+                {item.status !== "PAID" &&
+                  item.status !== "CANCELLED" &&
+                  item.status !== "REFUNDED" && (
+                    <Button
+                      size="sm"
+                      className="rounded-full"
+                      disabled={actingId === item.id}
+                      onClick={() => act(item.id, "mark_paid")}
+                    >
+                      {actingId === item.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                          Оплачен
+                        </>
+                      )}
+                    </Button>
+                  )}
+                {(item.status === "DRAFT" ||
+                  item.status === "SENT" ||
+                  item.status === "SIGNED") && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="rounded-full text-destructive"
+                    disabled={actingId === item.id}
+                    onClick={() => act(item.id, "cancel")}
+                  >
+                    <XCircle className="h-4 w-4 mr-1.5" />
+                    Отмена
                   </Button>
                 )}
               </div>

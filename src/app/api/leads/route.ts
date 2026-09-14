@@ -5,6 +5,10 @@ import {
   buildLeadCreateData,
   normalizeLawyerQueryParam,
 } from "@/lib/platform/leads";
+import {
+  buildLeadAssignedNotification,
+  deliverLeadAssignedNotification,
+} from "@/lib/platform/lead-notify";
 
 const N8N_LEAD_WEBHOOK = process.env.N8N_LEAD_WEBHOOK_URL;
 
@@ -155,25 +159,28 @@ export async function POST(request: NextRequest) {
 
     let lawyerId: string | null = null;
     let lawyerName: string | null = null;
+    let lawyerEmail: string | null = null;
     const slug = normalizeLawyerQueryParam(body.lawyerSlug || body.lawyer);
 
     if (slug) {
       const lawyer = await prisma.lawyerProfile.findFirst({
         where: { slug, status: "ACTIVE" },
-        select: { id: true, displayName: true },
+        select: { id: true, displayName: true, user: { select: { email: true } } },
       });
       if (lawyer) {
         lawyerId = lawyer.id;
         lawyerName = lawyer.displayName;
+        lawyerEmail = lawyer.user?.email ?? null;
       }
     } else if (typeof body.lawyerId === "string" && body.lawyerId) {
       const lawyer = await prisma.lawyerProfile.findFirst({
         where: { id: body.lawyerId, status: "ACTIVE" },
-        select: { id: true, displayName: true },
+        select: { id: true, displayName: true, user: { select: { email: true } } },
       });
       if (lawyer) {
         lawyerId = lawyer.id;
         lawyerName = lawyer.displayName;
+        lawyerEmail = lawyer.user?.email ?? null;
       }
     }
 
@@ -199,6 +206,23 @@ export async function POST(request: NextRequest) {
         telegramChatId: true,
       },
     });
+
+
+    if (lawyerId) {
+      const note = buildLeadAssignedNotification({
+        lawyerDisplayName: lawyerName || "Юрист",
+        lawyerEmail,
+        lead: {
+          id: data.id,
+          name: data.name,
+          phone: data.phone,
+          email: data.email,
+          service: data.service,
+          message: data.message,
+        },
+      });
+      await deliverLeadAssignedNotification(note);
+    }
 
     await sendTelegramNotification(data, settings, lawyerName);
     await sendToN8n(data);

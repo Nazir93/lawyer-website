@@ -31,18 +31,21 @@ describe("moderation notifications", () => {
     expect(note.body).toContain("отклон");
   });
 
-  it("deliverModerationNotification logs and reports delivery", async () => {
+  it("deliverModerationNotification logs and emails recipient", async () => {
     const log = vi.fn();
+    const sendEmail = vi.fn(async () => ({ sent: true, provider: "custom" as const }));
     const result = await deliverModerationNotification(
       {
-        channel: "log",
+        channel: "email",
         subject: "test",
         body: "body",
-        recipient: null,
+        recipient: "anna@example.com",
       },
-      { log }
+      { log, sendEmail }
     );
     expect(result.delivered).toBe(true);
+    expect(result.channel).toContain("email");
     expect(log).toHaveBeenCalledOnce();
+    expect(sendEmail).toHaveBeenCalledOnce();
   });
 });

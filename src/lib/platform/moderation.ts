@@ -1,3 +1,9 @@
+import {
+  sendPlatformEmail,
+  type EmailMessage,
+  type EmailSendResult,
+} from "@/lib/platform/email";
+
 export type LawyerStatus =
   | "PENDING"
   | "ACTIVE"
@@ -60,14 +66,15 @@ export function buildModerationNotification(
 
 /**
  * Доставка уведомления.
- * Пока без внешних провайдеров оплаты/SMTP: пишем в лог.
- * Если задан TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID — дублируем админу.
+ * Лог всегда. Email — если есть recipient (Resend / webhook / log).
+ * Telegram — опционально через deps.sendTelegram.
  */
 export async function deliverModerationNotification(
   notification: ModerationNotification,
   deps?: {
     log?: (msg: string) => void;
     sendTelegram?: (text: string) => Promise<void>;
+    sendEmail?: (message: EmailMessage) => Promise<EmailSendResult | void>;
   }
 ): Promise<{ delivered: boolean; channel: string }> {
   const log = deps?.log ?? console.log;
@@ -75,15 +82,29 @@ export async function deliverModerationNotification(
     `[moderation] ${notification.subject} → ${notification.recipient || "log-only"}\n${notification.body}`
   );
 
+  const channels: string[] = ["log"];
+
+  if (notification.recipient) {
+    const send =
+      deps?.sendEmail ??
+      ((message: EmailMessage) => sendPlatformEmail(message, { log }));
+    await send({
+      to: notification.recipient,
+      subject: notification.subject,
+      text: notification.body,
+    });
+    channels.push("email");
+  }
+
   if (deps?.sendTelegram) {
     await deps.sendTelegram(
       `${notification.subject}\n\n${notification.body}`
     );
-    return { delivered: true, channel: "telegram+log" };
+    channels.push("telegram");
   }
 
   return {
     delivered: true,
-    channel: notification.channel,
+    channel: channels.join("+"),
   };
 }

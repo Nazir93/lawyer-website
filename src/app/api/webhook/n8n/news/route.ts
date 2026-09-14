@@ -31,12 +31,11 @@ export async function POST(request: NextRequest) {
       data: {
         title: body.title,
         slug: slug,
-        excerpt: body.excerpt || body.description || "",
-        content: body.content || body.description || "",
+        description: body.excerpt || body.description || null,
+        content: body.content || body.description || null,
         imageUrl: body.image_url || body.imageUrl || null,
         isPublished: body.is_published ?? body.isPublished ?? true,
-        category: body.category || "Новости",
-        readTime: body.read_time || estimateReadTime(body.content || ""),
+        publishedAt: (body.is_published ?? body.isPublished ?? true) ? new Date() : null,
       },
     });
 

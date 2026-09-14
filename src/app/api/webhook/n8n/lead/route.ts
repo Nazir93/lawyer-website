@@ -56,9 +56,9 @@ export async function POST(request: NextRequest) {
     if (body.action === "update_status" && body.lead_id) {
       const updated = await prisma.lead.update({
         where: { id: body.lead_id },
-        data: { 
-          status: body.status || "PROCESSING",
-          notes: body.notes,
+        data: {
+          // LeadStatus: NEW | CONTACTED | CONSULTATION | DONE | REJECTED
+          status: body.status || "CONTACTED",
         },
       });
 

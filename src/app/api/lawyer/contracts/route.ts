@@ -8,6 +8,10 @@ import {
   markContractPaid,
   nextStatusForLawyerAction,
 } from "@/lib/platform/contracts";
+import {
+  buildContractSentNotification,
+  deliverContractSentNotification,
+} from "@/lib/platform/contract-notify";
 
 export async function GET() {
   try {
@@ -181,11 +185,34 @@ export async function PATCH(request: NextRequest) {
     const nextStatus = nextStatusForLawyerAction(action);
     const updated = await prisma.contract.update({
       where: { id },
-      data: {
-        status: nextStatus,
-        ...(action === "send" ? {} : {}),
-      },
+      data: { status: nextStatus },
     });
+
+    if (action === "send") {
+      const [client, lawyer] = await Promise.all([
+        prisma.user.findUnique({
+          where: { id: contract.clientId },
+          select: { name: true, email: true },
+        }),
+        prisma.lawyerProfile.findUnique({
+          where: { id: contract.lawyerId },
+          select: { displayName: true },
+        }),
+      ]);
+
+      const notification = buildContractSentNotification({
+        clientName: client?.name ?? null,
+        clientEmail: client?.email ?? null,
+        lawyerDisplayName: lawyer?.displayName || "Юрист",
+        contract: {
+          id: updated.id,
+          title: updated.title,
+          amountKopecks: updated.amount,
+        },
+      });
+
+      await deliverContractSentNotification(notification);
+    }
 
     return NextResponse.json({ contract: updated });
   } catch (error) {

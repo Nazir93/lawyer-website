@@ -2,16 +2,34 @@ import { Suspense } from "react";
 import { Phone, Mail, MapPin, Clock, ArrowUpRight } from "lucide-react";
 import { ContactForm } from "@/components/forms/contact-form";
 import { prisma } from "@/lib/db";
+import { normalizeLawyerQueryParam } from "@/lib/platform/leads";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 async function getSettings() {
-  const data = await prisma.siteSettings.findFirst();
-  return data;
+  return prisma.siteSettings.findFirst();
 }
 
-export default async function ContactsPage() {
-  const settings = await getSettings();
+async function getLawyerLabel(slug: string | null) {
+  if (!slug) return null;
+  const profile = await prisma.lawyerProfile.findFirst({
+    where: { slug, status: "ACTIVE" },
+    select: { displayName: true },
+  });
+  return profile?.displayName ?? null;
+}
+
+export default async function ContactsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lawyer?: string }>;
+}) {
+  const params = await searchParams;
+  const lawyerSlug = normalizeLawyerQueryParam(params.lawyer);
+  const [settings, lawyerName] = await Promise.all([
+    getSettings(),
+    getLawyerLabel(lawyerSlug),
+  ]);
 
   const contactInfo = [
     {
@@ -80,7 +98,11 @@ export default async function ContactsPage() {
               <span className="font-serif italic">с нами</span>
             </h1>
             <p className="text-lg text-muted-foreground">
-              Получите бесплатную первичную консультацию. Мы ответим в течение часа.
+              Получите бесплатную первичную консультацию. Мы ответим в течение
+              часа.
+              {lawyerName
+                ? ` Заявка будет направлена юристу: ${lawyerName}.`
+                : ""}
             </p>
           </div>
         </div>

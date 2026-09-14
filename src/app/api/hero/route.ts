@@ -49,6 +49,7 @@ export async function GET() {
 // PUT - Обновить hero контент
 export async function PUT(request: NextRequest) {
   try {
+    await requirePlatformAdmin();
     const body = await request.json();
     
     console.log("Received hero data:", JSON.stringify(body, null, 2));

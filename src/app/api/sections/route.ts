@@ -60,9 +60,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: transformedSections });
   } catch (error) {
     console.error("Error fetching sections:", error);
-    return NextResponse.json(
-      { error: "Ошибка получения разделов" },
-      { status: 500 }
+    return (
+      authErrorResponse(error) ||
+      NextResponse.json({ error: "Ошибка получения разделов" }, { status: 500 })
     );
   }
 }
@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
 // POST - Создать новый раздел
 export async function POST(request: NextRequest) {
   try {
+    await requirePlatformAdmin();
     const body = await request.json();
 
     const section = await prisma.section.create({
@@ -114,9 +115,9 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    return NextResponse.json(
-      { error: "Ошибка создания раздела" },
-      { status: 500 }
+    return (
+      authErrorResponse(error) ||
+      NextResponse.json({ error: "Ошибка создания раздела" }, { status: 500 })
     );
   }
 }

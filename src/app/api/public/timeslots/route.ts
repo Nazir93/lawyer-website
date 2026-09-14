@@ -8,6 +8,26 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("start");
     const endDate = searchParams.get("end");
     const date = searchParams.get("date");
+    const lawyerSlug = searchParams.get("lawyer");
+    const lawyerIdParam = searchParams.get("lawyerId");
+
+    let lawyerId: string | null | undefined = undefined;
+    if (lawyerIdParam) {
+      lawyerId = lawyerIdParam;
+    } else if (lawyerSlug) {
+      const profile = await prisma.lawyerProfile.findFirst({
+        where: { slug: lawyerSlug, status: "ACTIVE" },
+        select: { id: true },
+      });
+      lawyerId = profile?.id ?? "__none__";
+    }
+
+    const lawyerFilter =
+      lawyerId === undefined
+        ? {}
+        : lawyerId === "__none__"
+          ? { id: { in: [] as string[] } }
+          : { lawyerId };
 
     // Если указана конкретная дата
     if (date) {
@@ -19,6 +39,7 @@ export async function GET(request: NextRequest) {
           date: targetDate,
           isAvailable: true,
           isBooked: false,
+          ...lawyerFilter,
         },
         orderBy: { startTime: "asc" },
       });
@@ -50,6 +71,7 @@ export async function GET(request: NextRequest) {
           },
           isAvailable: true,
           isBooked: false,
+          ...lawyerFilter,
         },
         orderBy: [{ date: "asc" }, { startTime: "asc" }],
       });
@@ -88,6 +110,7 @@ export async function GET(request: NextRequest) {
         },
         isAvailable: true,
         isBooked: false,
+        ...lawyerFilter,
       },
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
     });

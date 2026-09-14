@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { getPostLoginPath } from "@/lib/auth/roles";
 
 function LoginForm() {
   const router = useRouter();
@@ -25,14 +26,19 @@ function LoginForm() {
   });
 
   // Получаем callbackUrl из параметров
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrl = searchParams.get("callbackUrl");
 
   // Если уже авторизован - перенаправляем
   useEffect(() => {
     if (session?.user) {
-      const redirectUrl = session.user.role === "ADMIN" || session.user.role === "LAWYER" 
-        ? (callbackUrl.includes("/gasanov") ? callbackUrl : "/gasanov")
-        : "/dashboard";
+      const defaultPath = getPostLoginPath(session.user.role);
+      const redirectUrl =
+        callbackUrl &&
+        (callbackUrl.startsWith("/dashboard") ||
+          callbackUrl.startsWith("/lawyer") ||
+          callbackUrl.startsWith("/gasanov"))
+          ? callbackUrl
+          : defaultPath;
       router.push(redirectUrl);
     }
   }, [session, router, callbackUrl]);

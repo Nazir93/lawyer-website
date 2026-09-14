@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     await requireAdmin();
 
     const body = await request.json();
-    const { date, slots, generate_week } = body;
+    const { date, slots, generate_week, lawyer_id: lawyerId } = body;
 
     // Если нужно сгенерировать слоты на неделю
     if (generate_week) {
@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
         endTime: string;
         isAvailable: boolean;
         isBooked: boolean;
+        lawyerId: string | null;
       }> = [];
 
       // Генерируем на 7 дней
@@ -117,6 +118,7 @@ export async function POST(request: NextRequest) {
             endTime,
             isAvailable: true,
             isBooked: false,
+            lawyerId: typeof lawyerId === "string" ? lawyerId : null,
           });
         }
       }
@@ -132,6 +134,7 @@ export async function POST(request: NextRequest) {
             where: {
               date: slot.date,
               startTime: slot.startTime,
+              lawyerId: slot.lawyerId,
             },
           });
 

@@ -19,6 +19,8 @@ import {
   Calendar,
   Menu,
   X,
+  Percent,
+  Banknote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -54,6 +56,21 @@ const navigation = [
         title: "Пользователи",
         href: "/gasanov/users",
         icon: Users,
+      },
+      {
+        title: "Юристы",
+        href: "/gasanov/lawyers",
+        icon: Scale,
+      },
+      {
+        title: "Начисления",
+        href: "/gasanov/commissions",
+        icon: Banknote,
+      },
+      {
+        title: "% платформы",
+        href: "/gasanov/platform",
+        icon: Percent,
       },
     ],
   },

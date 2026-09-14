@@ -28,10 +28,12 @@ declare module "@auth/core/jwt" {
   interface JWT {
     role: UserRole;
     phone?: string | null;
+    roleCheckedAt?: number;
   }
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   adapter: PrismaAdapter(prisma) as any,
   session: {
     strategy: "jwt",
@@ -56,7 +58,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         const email = (credentials.email as string).trim().toLowerCase();
-        
+
+        const { checkRateLimit } = await import("@/lib/security/rate-limit");
+        const limited = checkRateLimit({
+          key: `login:email:${email}`,
+          limit: 10,
+          windowMs: 15 * 60 * 1000,
+        });
+        if (!limited.allowed) {
+          throw new Error("Слишком много попыток входа. Попробуйте позже");
+        }
+
         // Валидация email формата
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
@@ -68,7 +80,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
 
         if (!user || !user.password) {
-          // Используем общее сообщение для безопасности
           throw new Error("Неверный email или пароль");
         }
 
@@ -97,7 +108,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.role = user.role;
         token.phone = user.phone;
+        token.roleCheckedAt = Date.now();
+        return token;
       }
+
+      // Периодически подтягиваем роль из БД (бан/демоут не ждут 30 дней)
+      const checkedAt = token.roleCheckedAt ?? 0;
+      const stale = Date.now() - checkedAt > 5 * 60 * 1000;
+      if (token.sub && stale) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { role: true, phone: true },
+        });
+        if (!dbUser) {
+          return { ...token, role: undefined, phone: undefined };
+        }
+        token.role = dbUser.role;
+        token.phone = dbUser.phone;
+        token.roleCheckedAt = Date.now();
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -126,10 +156,25 @@ export async function requireAuth() {
   return user;
 }
 
-// Хелпер для проверки роли админа
+// Хелпер для проверки роли админа платформы / CMS
+// ВАЖНО: LAWYER больше не считается админом (иначе эскалация привилегий)
 export async function requireAdmin() {
+  return requirePlatformAdmin();
+}
+
+// Только админ платформы (CMS сайта)
+export async function requirePlatformAdmin() {
   const user = await requireAuth();
-  if (user.role !== "ADMIN" && user.role !== "LAWYER") {
+  if (user.role !== "ADMIN") {
+    throw new Error("Forbidden");
+  }
+  return user;
+}
+
+// Кабинет юриста
+export async function requireLawyer() {
+  const user = await requireAuth();
+  if (user.role !== "LAWYER" && user.role !== "ADMIN") {
     throw new Error("Forbidden");
   }
   return user;

@@ -100,10 +100,11 @@ export async function POST(request: NextRequest) {
     const appointmentDate = new Date(slot.date);
     appointmentDate.setHours(startH, startM, 0, 0);
 
-    // Создаём запись
+    // Создаём запись (привязка к юристу из слота, если есть)
     const appointment = await prisma.appointment.create({
       data: {
         userId: user.id,
+        lawyerId: slot.lawyerId ?? null,
         title: title || "Консультация",
         description: description || null,
         appointmentDate,

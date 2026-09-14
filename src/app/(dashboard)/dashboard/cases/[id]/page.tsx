@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatDateShort, formatDateTime } from "@/lib/utils/date";
+import { stripHtml } from "@/lib/security/sanitize";
 
 interface CaseDetail {
   id: string;
@@ -306,10 +307,9 @@ export default function CaseDetailPage() {
               <CardTitle className="text-lg">Описание дела</CardTitle>
             </CardHeader>
             <CardContent>
-              <div 
-                className="prose dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: caseData.content }}
-              />
+              <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap text-sm leading-relaxed">
+                {stripHtml(caseData.content)}
+              </div>
             </CardContent>
           </Card>
         </motion.div>

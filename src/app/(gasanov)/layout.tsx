@@ -14,8 +14,11 @@ export default async function GasanovLayout({
     redirect('/login?callbackUrl=/gasanov');
   }
   
-  // Проверка роли - только ADMIN или LAWYER
-  if (session.user.role !== 'ADMIN' && session.user.role !== 'LAWYER') {
+  // Проверка роли - только ADMIN платформы
+  if (session.user.role !== 'ADMIN') {
+    if (session.user.role === 'LAWYER') {
+      redirect('/lawyer');
+    }
     redirect('/dashboard');
   }
 

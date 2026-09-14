@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 // POST - Изменить порядок разделов
 export async function POST(request: NextRequest) {
   try {
+    await requirePlatformAdmin();
     const body = await request.json();
     const { sections } = body;
 
@@ -27,9 +28,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error reordering sections:", error);
-    return NextResponse.json(
-      { error: "Ошибка изменения порядка" },
-      { status: 500 }
+    return (
+      authErrorResponse(error) ||
+      NextResponse.json({ error: "Ошибка изменения порядка" }, { status: 500 })
     );
   }
 }
